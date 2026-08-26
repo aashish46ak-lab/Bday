@@ -33,45 +33,38 @@ export default function Home() {
     setTimeout(() => {
       setShowFireworks(false);
       go("gift");
-    }, 5500);
+    }, 6000);
   };
 
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#050509] text-[#fff8f0]">
-      {scene !== "final" && <Starfield density={scene === "intro" ? 0.6 : 1} />}
+      {/* Starfield stays on for every scene — never stops */}
+      <Starfield density={scene === "intro" ? 0.55 : scene === "final" ? 0.85 : 1} />
 
-      {scene === "intro" && (
-        <VolumePrompt onEnter={() => go("hero")} />
-      )}
+      {scene === "intro" && <VolumePrompt onEnter={() => go("hero")} />}
 
-      {scene === "hero" && (
-        <BirthdayHero onComplete={() => go("cake")} />
-      )}
+      {scene === "hero" && <BirthdayHero onComplete={() => go("cake")} />}
 
-      {scene === "cake" && (
-        <BirthdayCake onBlownOut={handleBlownOut} />
-      )}
+      {scene === "cake" && <BirthdayCake onBlownOut={handleBlownOut} />}
 
       {(scene === "fireworks" || showFireworks) && (
         <>
-          <Fireworks active intensity={1.1} />
+          <Fireworks active intensity={1.25} />
           <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none">
             <h2
               className="text-3xl sm:text-5xl font-light text-[#fff8f0] text-center px-4"
               style={{
                 animation: "popIn 1.2s ease-out forwards",
-                textShadow: "0 0 40px rgba(232,200,122,0.4)",
+                textShadow: "0 0 48px rgba(232,200,122,0.5)",
               }}
             >
-              HAPPY BIRTHDAY, ESHA! 🎂
+              Happy Birthday, Esha! 🎂
             </h2>
           </div>
         </>
       )}
 
-      {scene === "gift" && (
-        <GiftBox onOpen={() => go("reveal")} />
-      )}
+      {scene === "gift" && <GiftBox onOpen={() => go("reveal")} />}
 
       {scene === "reveal" && (
         <GiftReveal

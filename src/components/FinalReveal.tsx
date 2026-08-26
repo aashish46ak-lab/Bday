@@ -9,26 +9,21 @@ interface Props {
   active: boolean;
 }
 
-/** Clean ESHA letter shapes as star points (normalized 0–1 in a letter box) */
 const LETTERS: { x: number; y: number }[][] = [
-  // E
   [
     { x: 0, y: 0 }, { x: 0, y: 0.5 }, { x: 0, y: 1 },
     { x: 0.55, y: 0 }, { x: 0.45, y: 0.5 }, { x: 0.55, y: 1 },
   ],
-  // S
   [
     { x: 0.55, y: 0.08 }, { x: 0.25, y: 0 }, { x: 0, y: 0.2 },
     { x: 0.15, y: 0.45 }, { x: 0.4, y: 0.55 }, { x: 0.55, y: 0.75 },
     { x: 0.3, y: 1 }, { x: 0, y: 0.9 },
   ],
-  // H
   [
     { x: 0, y: 0 }, { x: 0, y: 0.5 }, { x: 0, y: 1 },
     { x: 0.55, y: 0 }, { x: 0.55, y: 0.5 }, { x: 0.55, y: 1 },
     { x: 0.27, y: 0.5 },
   ],
-  // A
   [
     { x: 0, y: 1 }, { x: 0.28, y: 0 }, { x: 0.55, y: 1 },
     { x: 0.12, y: 0.55 }, { x: 0.42, y: 0.55 },
@@ -41,14 +36,14 @@ export default function FinalReveal({ active }: Props) {
 
   useEffect(() => {
     if (!active) return;
-    audio.fadeMusic(0.35, 2);
+    audio.fadeMusic(0.4, 2);
     const timers = [
-      setTimeout(() => setPhase(1), 600),
-      setTimeout(() => setPhase(2), 1800),
-      setTimeout(() => setPhase(3), 4200),
-      setTimeout(() => setPhase(4), 5600),
-      setTimeout(() => setPhase(5), 7800),
-      setTimeout(() => setPhase(6), 10000),
+      setTimeout(() => setPhase(1), 500),
+      setTimeout(() => setPhase(2), 1600),
+      setTimeout(() => setPhase(3), 3800),
+      setTimeout(() => setPhase(4), 5200),
+      setTimeout(() => setPhase(5), 7200),
+      setTimeout(() => setPhase(6), 9500),
     ];
     return () => timers.forEach(clearTimeout);
   }, [active]);
@@ -69,13 +64,12 @@ export default function FinalReveal({ active }: Props) {
     canvas.style.height = `${h}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // layout letters centered
-    const letterW = Math.min(w * 0.16, 72);
-    const letterH = letterW * 1.35;
-    const gap = letterW * 0.35;
+    const letterW = Math.min(w * 0.17, 78);
+    const letterH = letterW * 1.4;
+    const gap = letterW * 0.32;
     const totalW = letterW * 4 + gap * 3;
     const startX = (w - totalW) / 2;
-    const startY = h * 0.32;
+    const startY = h * 0.28;
 
     type Star = { x: number; y: number; delay: number; tw: number };
     const stars: Star[] = [];
@@ -85,19 +79,11 @@ export default function FinalReveal({ active }: Props) {
         stars.push({
           x: ox + p.x * letterW,
           y: startY + p.y * letterH,
-          delay: (li * 0.12 + pi * 0.04) * 60,
+          delay: (li * 0.1 + pi * 0.035) * 55,
           tw: Math.random() * Math.PI * 2,
         });
       });
     });
-
-    // ambient background stars
-    const bg = Array.from({ length: 40 }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      s: 0.4 + Math.random() * 1.2,
-      tw: Math.random() * Math.PI * 2,
-    }));
 
     let frame = 0;
     let raf = 0;
@@ -105,22 +91,14 @@ export default function FinalReveal({ active }: Props) {
       frame += 1;
       ctx.clearRect(0, 0, w, h);
 
-      bg.forEach((b) => {
-        b.tw += 0.03;
-        const a = 0.15 + 0.2 * (0.5 + 0.5 * Math.sin(b.tw));
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.s, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,248,240,${a})`;
-        ctx.fill();
-      });
-
-      // soft connecting glow between letter points (subtle, not messy lines)
+      // soft letter outlines (readable, not messy)
       LETTERS.forEach((pts, li) => {
         const ox = startX + li * (letterW + gap);
-        const reveal = Math.min(1, Math.max(0, (frame - li * 8) / 50));
+        const reveal = Math.min(1, Math.max(0, (frame - li * 6) / 45));
         if (reveal <= 0) return;
-        ctx.strokeStyle = `rgba(232, 200, 122, ${0.12 * reveal})`;
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(232, 200, 122, ${0.22 * reveal})`;
+        ctx.lineWidth = 1.25;
+        ctx.lineJoin = "round";
         ctx.beginPath();
         pts.forEach((p, i) => {
           const x = ox + p.x * letterW;
@@ -134,24 +112,22 @@ export default function FinalReveal({ active }: Props) {
       stars.forEach((s) => {
         const local = Math.max(0, frame - s.delay);
         if (local <= 0) return;
-        const appear = Math.min(1, local / 20);
-        s.tw += 0.05;
-        const pulse = 0.7 + 0.3 * Math.sin(s.tw);
-        const r = (2.2 + pulse * 1.2) * appear;
+        const appear = Math.min(1, local / 18);
+        s.tw += 0.055;
+        const pulse = 0.65 + 0.35 * Math.sin(s.tw);
+        const r = (2.4 + pulse * 1.4) * appear;
 
-        // glow
-        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 5);
-        g.addColorStop(0, `rgba(232, 200, 122, ${0.35 * appear * pulse})`);
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 6);
+        g.addColorStop(0, `rgba(232, 200, 122, ${0.4 * appear * pulse})`);
         g.addColorStop(1, "transparent");
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, r * 5, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, r * 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // core
         ctx.beginPath();
         ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 248, 240, ${0.85 * appear})`;
+        ctx.fillStyle = `rgba(255, 248, 240, ${0.9 * appear})`;
         ctx.fill();
       });
 
@@ -164,7 +140,7 @@ export default function FinalReveal({ active }: Props) {
   if (!active) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-[#050509]">
+    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-transparent">
       {phase >= 1 && phase < 5 && (
         <canvas ref={canvasRef} className="absolute inset-0" aria-hidden />
       )}
@@ -181,7 +157,7 @@ export default function FinalReveal({ active }: Props) {
         </h1>
       )}
 
-      {phase >= 4 && <Fireworks active intensity={1.15} />}
+      {phase >= 4 && <Fireworks active intensity={1.2} />}
 
       {phase >= 4 && (
         <div className="relative z-20 text-center px-6 space-y-5 max-w-md">
@@ -228,24 +204,12 @@ export default function FinalReveal({ active }: Props) {
 
       <style jsx>{`
         @keyframes fadeScale {
-          from {
-            opacity: 0;
-            transform: scale(0.88);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
+          from { opacity: 0; transform: scale(0.88); }
+          to { opacity: 1; transform: scale(1); }
         }
         @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(14px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

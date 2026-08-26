@@ -8,6 +8,9 @@ interface Props {
 }
 
 const CANDLE_COUNT = 5;
+/** Need sustained blow — not a single noise spike */
+const BLOW_THRESHOLD = 52;
+const BLOW_FRAMES_NEEDED = 14; // ~230ms continuous blow at 60fps
 
 interface WindParticle {
   id: number;
@@ -40,22 +43,25 @@ export default function BirthdayCake({ onBlownOut }: Props) {
   const [windParticles, setWindParticles] = useState<WindParticle[]>([]);
   const [confetti, setConfetti] = useState<Confetti[]>([]);
   const [listeningPulse, setListeningPulse] = useState(0);
+  const [blowProgress, setBlowProgress] = useState(0);
+
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef(0);
   const windId = useRef(0);
   const confettiId = useRef(0);
   const blownRef = useRef(false);
+  const blowStreak = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 280);
     return () => clearTimeout(t);
   }, []);
 
-  // wind particles while blowing
   useEffect(() => {
     if (!blowing) return;
     let frame = 0;
+    let localRaf = 0;
     const tick = () => {
       frame += 1;
       setWindParticles((prev) =>
@@ -68,39 +74,39 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           }))
           .filter((p) => p.life > 0)
       );
-      if (frame < 50) {
+      if (frame < 55) {
         setWindParticles((prev) => [
           ...prev,
-          ...Array.from({ length: 4 }, () => ({
+          ...Array.from({ length: 5 }, () => ({
             id: windId.current++,
-            x: 10 + Math.random() * 35,
-            y: 25 + Math.random() * 55,
-            vx: 5 + Math.random() * 7,
+            x: 8 + Math.random() * 30,
+            y: 22 + Math.random() * 55,
+            vx: 5.5 + Math.random() * 8,
             life: 16 + Math.floor(Math.random() * 14),
           })),
         ]);
       }
-      rafRef.current = requestAnimationFrame(tick);
+      localRaf = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    localRaf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(localRaf);
   }, [blowing]);
 
-  // confetti after all out
   useEffect(() => {
     if (!smoke) return;
     const colors = ["#e8c87a", "#e8b4c8", "#c9b8e8", "#f5e6c8", "#fff8f0", "#ff9f7a"];
-    const pieces: Confetti[] = Array.from({ length: 48 }, () => ({
-      id: confettiId.current++,
-      x: 40 + Math.random() * 20,
-      y: 35 + Math.random() * 10,
-      vx: (Math.random() - 0.5) * 3.5,
-      vy: -2 - Math.random() * 3,
-      rot: Math.random() * 360,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      life: 60 + Math.random() * 40,
-    }));
-    setConfetti(pieces);
+    setConfetti(
+      Array.from({ length: 56 }, () => ({
+        id: confettiId.current++,
+        x: 38 + Math.random() * 24,
+        y: 32 + Math.random() * 12,
+        vx: (Math.random() - 0.5) * 4,
+        vy: -2.2 - Math.random() * 3.2,
+        rot: Math.random() * 360,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 55 + Math.random() * 45,
+      }))
+    );
     let frame = 0;
     const tick = () => {
       frame += 1;
@@ -110,13 +116,13 @@ export default function BirthdayCake({ onBlownOut }: Props) {
             ...c,
             x: c.x + c.vx,
             y: c.y + c.vy,
-            vy: c.vy + 0.08,
-            rot: c.rot + 6,
+            vy: c.vy + 0.09,
+            rot: c.rot + 7,
             life: c.life - 1,
           }))
           .filter((c) => c.life > 0)
       );
-      if (frame < 90) requestAnimationFrame(tick);
+      if (frame < 100) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }, [smoke]);
@@ -125,6 +131,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
     if (!lit || blowing || blownRef.current) return;
     blownRef.current = true;
     setBlowing(true);
+    setBlowProgress(1);
     audio.playSfx("blow");
 
     let i = 0;
@@ -132,7 +139,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
       if (i >= CANDLE_COUNT) {
         setLit(false);
         setSmoke(true);
-        setTimeout(() => onBlownOut(), 2200);
+        setTimeout(() => onBlownOut(), 2300);
         return;
       }
       setExtinguished((prev) => {
@@ -141,36 +148,67 @@ export default function BirthdayCake({ onBlownOut }: Props) {
         return next;
       });
       i += 1;
-      setTimeout(step, 200);
+      setTimeout(step, 210);
     };
-    setTimeout(step, 320);
+    setTimeout(step, 350);
   }, [lit, blowing, onBlownOut]);
 
   const startMic = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       streamRef.current = stream;
       const ctx = new AudioContext();
+      await ctx.resume();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.35;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.4;
       source.connect(analyser);
       analyserRef.current = analyser;
       setMicState("on");
+      blowStreak.current = 0;
 
       const data = new Uint8Array(analyser.frequencyBinCount);
+
       const check = () => {
         if (blownRef.current) return;
         analyser.getByteFrequencyData(data);
+
+        // focus mid-high bins (breath energy), ignore very low rumble
         let sum = 0;
-        for (let i = 0; i < data.length; i++) sum += data[i];
-        const avg = sum / data.length;
-        setListeningPulse(Math.min(1, avg / 80));
-        if (avg > 42) {
-          extinguishAll();
-          return;
+        let count = 0;
+        const start = Math.floor(data.length * 0.08);
+        const end = Math.floor(data.length * 0.55);
+        for (let i = start; i < end; i++) {
+          sum += data[i];
+          count += 1;
         }
+        const avg = count ? sum / count : 0;
+        setListeningPulse(Math.min(1, avg / 90));
+
+        if (avg >= BLOW_THRESHOLD) {
+          blowStreak.current += 1;
+          setBlowProgress(
+            Math.min(1, blowStreak.current / BLOW_FRAMES_NEEDED)
+          );
+          if (blowStreak.current >= BLOW_FRAMES_NEEDED) {
+            extinguishAll();
+            return;
+          }
+        } else {
+          // require continuous blow — reset if user stops
+          blowStreak.current = Math.max(0, blowStreak.current - 2);
+          setBlowProgress(
+            Math.min(1, blowStreak.current / BLOW_FRAMES_NEEDED)
+          );
+        }
+
         rafRef.current = requestAnimationFrame(check);
       };
       rafRef.current = requestAnimationFrame(check);
@@ -180,7 +218,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
   }, [extinguishAll]);
 
   useEffect(() => {
-    const t = setTimeout(() => startMic(), 1200);
+    const t = setTimeout(() => startMic(), 1000);
     return () => {
       clearTimeout(t);
       cancelAnimationFrame(rafRef.current);
@@ -194,16 +232,14 @@ export default function BirthdayCake({ onBlownOut }: Props) {
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="text-center mb-6 space-y-2">
+      <div className="text-center mb-5 space-y-2">
         <p className="text-xl sm:text-2xl text-[#f5e6c8] font-light">
           Make a wish, Esha ✨
         </p>
-        <p className="text-sm text-[#c9b8e8]/70">Then blow out the candles</p>
+        <p className="text-sm text-[#c9b8e8]/70">Blow to put out the candles</p>
       </div>
 
-      {/* 3D cake stage */}
       <div className="relative select-none" style={{ width: 280, height: 260 }}>
-        {/* soft table glow */}
         <div
           className="absolute bottom-2 left-1/2 -translate-x-1/2 w-64 h-10 rounded-full blur-xl opacity-50"
           style={{
@@ -212,7 +248,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           }}
         />
 
-        {/* wind */}
         {blowing && (
           <div className="absolute inset-0 pointer-events-none overflow-hidden z-30">
             {windParticles.map((p) => (
@@ -225,8 +260,8 @@ export default function BirthdayCake({ onBlownOut }: Props) {
                   width: 4 + (p.life % 5),
                   height: 2,
                   opacity: Math.min(0.9, p.life / 18),
-                  background: "rgba(255,255,255,0.35)",
-                  boxShadow: "0 0 8px rgba(255,255,255,0.4)",
+                  background: "rgba(255,255,255,0.4)",
+                  boxShadow: "0 0 8px rgba(255,255,255,0.45)",
                   transform: "scaleX(2.2)",
                 }}
               />
@@ -234,7 +269,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           </div>
         )}
 
-        {/* confetti */}
         {confetti.map((c) => (
           <div
             key={c.id}
@@ -252,7 +286,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           />
         ))}
 
-        {/* plate — 3D ellipse */}
         <div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-60 h-5 rounded-[50%]"
           style={{
@@ -262,12 +295,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
               "0 6px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}
         />
-        <div
-          className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-52 h-2 rounded-[50%] opacity-40"
-          style={{ background: "rgba(255,248,240,0.15)" }}
-        />
 
-        {/* bottom tier — 3D cylinder feel */}
         <div
           className="absolute bottom-[8px] left-1/2 -translate-x-1/2 w-48 h-[78px] rounded-t-[18px]"
           style={{
@@ -277,7 +305,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
               "inset 0 -14px 24px rgba(0,0,0,0.22), inset 0 4px 8px rgba(255,255,255,0.25), 0 8px 20px rgba(0,0,0,0.35)",
           }}
         >
-          {/* frosting drip edge */}
           <div className="absolute -top-3 left-0 right-0 h-6 flex justify-around px-1">
             {[...Array(9)].map((_, i) => (
               <div
@@ -292,17 +319,8 @@ export default function BirthdayCake({ onBlownOut }: Props) {
               />
             ))}
           </div>
-          {/* side highlight */}
-          <div
-            className="absolute inset-y-2 left-2 w-3 rounded-full opacity-30"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.5), transparent)",
-            }}
-          />
         </div>
 
-        {/* top tier */}
         <div
           className="absolute bottom-[82px] left-1/2 -translate-x-1/2 w-32 h-[58px] rounded-t-[14px]"
           style={{
@@ -325,16 +343,8 @@ export default function BirthdayCake({ onBlownOut }: Props) {
               />
             ))}
           </div>
-          <div
-            className="absolute inset-y-1 left-1.5 w-2.5 rounded-full opacity-35"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.55), transparent)",
-            }}
-          />
         </div>
 
-        {/* candles */}
         <div className="absolute bottom-[136px] left-1/2 -translate-x-1/2 flex gap-4">
           {[...Array(CANDLE_COUNT)].map((_, i) => {
             const isOut = extinguished[i];
@@ -346,7 +356,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
                     className={`relative -mb-0.5 ${isLeaning ? "flame-wind" : ""}`}
                     style={{ transformOrigin: "bottom center" }}
                   >
-                    {/* outer glow */}
                     <div
                       className="absolute -inset-3 rounded-full candle-glow"
                       style={{
@@ -355,14 +364,12 @@ export default function BirthdayCake({ onBlownOut }: Props) {
                         animationDelay: `${i * 0.1}s`,
                       }}
                     />
-                    {/* flame body */}
                     <div
                       className="w-3.5 h-6 rounded-[50%_50%_50%_50%/60%_60%_40%_40%] candle-flame relative z-10"
                       style={{
                         background:
                           "radial-gradient(ellipse at 50% 80%, #fffef5 0%, #ffe08a 25%, #ff9a3c 55%, #ff5a1a 85%, transparent 100%)",
                         animationDelay: `${i * 0.11}s`,
-                        filter: "blur(0.15px)",
                         boxShadow: "0 0 10px rgba(255,160,50,0.7)",
                       }}
                     />
@@ -371,10 +378,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
 
                 {isOut && smoke && (
                   <div className="relative h-10 w-5 -mb-1 flex justify-center">
-                    <div
-                      className="smoke-puff"
-                      style={{ animationDelay: `${i * 0.1}s` }}
-                    />
+                    <div className="smoke-puff" style={{ animationDelay: `${i * 0.1}s` }} />
                     <div
                       className="smoke-puff smoke-puff-2"
                       style={{ animationDelay: `${i * 0.1 + 0.2}s` }}
@@ -382,14 +386,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
                   </div>
                 )}
 
-                {isOut && !smoke && (
-                  <div
-                    className="w-1.5 h-1.5 rounded-full bg-[#ffaa44] ember mb-0.5"
-                    style={{ animationDelay: `${i * 0.04}s` }}
-                  />
-                )}
-
-                {/* candle stick — 3D */}
                 <div
                   className="w-3 h-9 rounded-sm relative overflow-hidden"
                   style={{
@@ -401,7 +397,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
                       "2px 0 3px rgba(0,0,0,0.2), inset 1px 0 0 rgba(255,255,255,0.35)",
                   }}
                 >
-                  {/* wick */}
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-1.5 bg-[#2a2a2a]" />
                 </div>
               </div>
@@ -410,7 +405,6 @@ export default function BirthdayCake({ onBlownOut }: Props) {
         </div>
       </div>
 
-      {/* mic-only UI — no blow button */}
       {lit && !blowing && (
         <div className="mt-8 text-center space-y-3 max-w-xs">
           {micState === "loading" && (
@@ -419,32 +413,29 @@ export default function BirthdayCake({ onBlownOut }: Props) {
             </p>
           )}
           {micState === "on" && (
-            <>
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className="w-16 h-16 rounded-full border-2 border-[#e8c87a]/40 flex items-center justify-center relative"
-                  style={{
-                    boxShadow: `0 0 ${12 + listeningPulse * 40}px rgba(232,200,122,${
-                      0.15 + listeningPulse * 0.45
-                    })`,
-                  }}
-                >
-                  <span className="text-2xl">🌬️</span>
-                  <div
-                    className="absolute inset-0 rounded-full border border-[#e8c87a]/30"
-                    style={{
-                      transform: `scale(${1 + listeningPulse * 0.45})`,
-                      opacity: 0.3 + listeningPulse * 0.5,
-                      transition: "transform 0.08s linear",
-                    }}
-                  />
-                </div>
-                <p className="text-sm text-[#f5e6c8]">Blow into your mic</p>
-                <p className="text-xs text-[#c9b8e8]/55">
-                  Hold the phone near you and blow gently
-                </p>
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-16 h-16 rounded-full border-2 border-[#e8c87a]/40 flex items-center justify-center relative"
+                style={{
+                  boxShadow: `0 0 ${12 + listeningPulse * 40}px rgba(232,200,122,${
+                    0.15 + listeningPulse * 0.5
+                  })`,
+                }}
+              >
+                <span className="text-2xl">🌬️</span>
               </div>
-            </>
+              {/* sustained blow progress */}
+              <div className="w-40 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#e8c87a] to-[#e8b4c8] transition-[width] duration-75"
+                  style={{ width: `${blowProgress * 100}%` }}
+                />
+              </div>
+              <p className="text-sm text-[#f5e6c8]">Keep blowing…</p>
+              <p className="text-xs text-[#c9b8e8]/55">
+                A real continuous blow — not a short puff
+              </p>
+            </div>
           )}
           {micState === "denied" && (
             <div className="space-y-3">
@@ -479,34 +470,16 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           animation: windLean 0.16s ease-in-out infinite alternate;
         }
         @keyframes flicker {
-          0% {
-            transform: scaleY(1) scaleX(1) rotate(-3deg);
-            opacity: 0.9;
-          }
-          100% {
-            transform: scaleY(1.2) scaleX(0.85) rotate(4deg);
-            opacity: 1;
-          }
+          0% { transform: scaleY(1) scaleX(1) rotate(-3deg); opacity: 0.9; }
+          100% { transform: scaleY(1.2) scaleX(0.85) rotate(4deg); opacity: 1; }
         }
         @keyframes glowPulse {
-          0% {
-            opacity: 0.35;
-            transform: scale(1);
-          }
-          100% {
-            opacity: 0.7;
-            transform: scale(1.3);
-          }
+          0% { opacity: 0.35; transform: scale(1); }
+          100% { opacity: 0.7; transform: scale(1.3); }
         }
         @keyframes windLean {
-          0% {
-            transform: rotate(14deg) scaleY(0.82) scaleX(1.2) translateX(3px);
-            opacity: 0.65;
-          }
-          100% {
-            transform: rotate(26deg) scaleY(0.65) scaleX(1.35) translateX(6px);
-            opacity: 0.35;
-          }
+          0% { transform: rotate(14deg) scaleY(0.82) scaleX(1.2) translateX(3px); opacity: 0.65; }
+          100% { transform: rotate(26deg) scaleY(0.65) scaleX(1.35) translateX(6px); opacity: 0.35; }
         }
         .smoke-puff {
           position: absolute;
@@ -523,27 +496,8 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           left: 5px;
         }
         @keyframes smokeUp {
-          0% {
-            opacity: 0.6;
-            transform: translateY(0) scale(0.5);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-42px) scale(2.4) translateX(8px);
-          }
-        }
-        .ember {
-          animation: emberDie 0.45s ease-out forwards;
-        }
-        @keyframes emberDie {
-          0% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(0.2);
-          }
+          0% { opacity: 0.6; transform: translateY(0) scale(0.5); }
+          100% { opacity: 0; transform: translateY(-42px) scale(2.4) translateX(8px); }
         }
       `}</style>
     </div>
