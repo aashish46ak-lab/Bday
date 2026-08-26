@@ -18,14 +18,18 @@ const WISHES = [
 ];
 
 export default function GiftReveal({ onAllExplored }: Props) {
-  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  const [explored, setExplored] = useState({
+    message: false,
+    music: false,
+    wishes: false,
+  });
   const [showMessage, setShowMessage] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
   const [showWishes, setShowWishes] = useState(false);
   const [finalUnlocked, setFinalUnlocked] = useState(false);
 
-  const mark = (key: string) => {
-    setOpened((p) => {
+  const mark = (key: "message" | "music" | "wishes") => {
+    setExplored((p) => {
       const next = { ...p, [key]: true };
       if (next.message && next.music && next.wishes && !finalUnlocked) {
         setTimeout(() => setFinalUnlocked(true), 600);

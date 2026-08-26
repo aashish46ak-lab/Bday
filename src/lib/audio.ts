@@ -8,6 +8,10 @@
 
 type SoundType = "blow" | "gift" | "envelope" | "firework" | "click" | "whoosh";
 
+type WebkitWindow = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 class AudioManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
@@ -23,7 +27,10 @@ class AudioManager {
     if (typeof window === "undefined") return;
     if (this.ctx) return;
     try {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const Win = window as WebkitWindow;
+      const Ctx = window.AudioContext || Win.webkitAudioContext;
+      if (!Ctx) return;
+      this.ctx = new Ctx();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 1;
       this.masterGain.connect(this.ctx.destination);
@@ -51,8 +58,8 @@ class AudioManager {
 
   setMuted(muted: boolean) {
     this.muted = muted;
-    if (this.masterGain) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1, this.ctx!.currentTime, 0.05);
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -142,7 +149,9 @@ class AudioManager {
     if (this.musicSource) {
       try {
         (this.musicSource as AudioBufferSourceNode).stop();
-      } catch {}
+      } catch {
+        // already stopped
+      }
       this.musicSource = null;
     }
   }
