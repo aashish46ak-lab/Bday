@@ -29,108 +29,57 @@ export default function VolumePrompt({ onEnter }: Props) {
         clearInterval(iv);
         setPhase("go");
         audio.startMusic();
-        setTimeout(() => onEnter(), 700);
+        setTimeout(() => onEnter(), 500);
       }
     }, 700);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {[...Array(6)].map((_, i) => (
-          <span
-            key={i}
-            className="absolute text-pink-200/60 select-none"
-            style={{
-              left: `${12 + i * 15}%`,
-              top: `${18 + (i % 3) * 25}%`,
-              fontSize: `${18 + (i % 3) * 10}px`,
-              animation: `floatHeart ${4 + i * 0.4}s ease-in-out infinite`,
-              animationDelay: `${i * 0.3}s`,
-            }}
-          >
-            ♥
-          </span>
-        ))}
-      </div>
-
-      <div className="relative z-10 max-w-sm mx-auto">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center plaid-bg px-6">
+      <div className="relative z-10 max-w-sm w-full text-center">
         {phase === "idle" && (
-          <div className="space-y-5" style={{ animation: "fadeUp 0.9s ease-out both" }}>
-            <div className="text-5xl">🎀</div>
-            <h1
-              className="text-3xl sm:text-4xl font-medium tracking-tight"
-              style={{ color: "#e07a9a", fontFamily: "Georgia, serif" }}
-            >
-              Something awaits…
+          <div className="paper-card rounded-3xl px-8 py-10 space-y-5" style={{ animation: "cardIn 0.7s ease-out both" }}>
+            <div className="text-4xl">🎧</div>
+            <p className="text-sm tracking-[0.25em] uppercase text-[#c45c6a]">Before you begin</p>
+            <h1 className="text-2xl text-[#4a3038]" style={{ fontFamily: "Georgia, serif" }}>
+              Turn your volume up
             </h1>
-            <p className="text-base text-[#9a7080]">
-              Turn your volume up for Esha
-            </p>
-            <div className="flex items-center justify-center gap-1.5 h-8 my-2">
+            <p className="text-sm text-[#8a6870] italic">Trust me, you&apos;ll want to hear this.</p>
+
+            <div className="flex items-center justify-center gap-1 h-10 my-2">
               {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="w-1 rounded-full bg-gradient-to-t from-[#f0a8bc] to-[#e07a9a]"
-                  style={{
-                    animation: "wave 1.1s ease-in-out infinite",
-                    animationDelay: `${i * 0.1}s`,
-                    height: "40%",
-                  }}
+                  className="w-1.5 rounded-full bg-gradient-to-t from-[#c45c6a] to-[#e8a0b0]"
+                  style={{ animation: `wave 1s ease-in-out ${i * 0.1}s infinite`, height: "40%" }}
                 />
               ))}
             </div>
+
             <button
               onClick={handleEnter}
               disabled={!ready}
-              className="mt-2 px-10 py-3.5 rounded-full bg-white border border-[#f0a8bc] text-[#e07a9a] font-medium shadow-sm hover:shadow-md hover:border-[#e07a9a] active:scale-95 transition-all disabled:opacity-50"
+              className="mt-2 px-10 py-3.5 rounded-full text-white font-medium tracking-wide transition-all active:scale-95 disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #d4788a, #c45c6a)", boxShadow: "0 6px 20px rgba(196,92,106,0.35)" }}
             >
-              Begin
+              ENTER ✨
             </button>
           </div>
         )}
 
         {phase === "count" && (
           <div className="flex flex-col items-center gap-3">
-            <p className="text-xs tracking-[0.25em] uppercase text-[#f0a8bc]">
-              Get ready
-            </p>
-            <div
-              key={count}
-              className="text-7xl font-light text-[#e07a9a]"
-              style={{ animation: "pop 0.45s ease-out" }}
-            >
+            <p className="text-xs tracking-[0.3em] uppercase text-[#c45c6a]">Get ready</p>
+            <div key={count} className="text-7xl text-[#c45c6a]" style={{ animation: "softPulse 0.6s ease-out" }}>
               {count}
             </div>
           </div>
         )}
 
         {phase === "go" && (
-          <div className="text-4xl" style={{ animation: "pop 0.5s ease-out" }}>
-            ✨
-          </div>
+          <div className="text-5xl" style={{ animation: "softPulse 0.5s ease-out" }}>✨</div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pop {
-          0% { opacity: 0; transform: scale(0.6); }
-          70% { transform: scale(1.08); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes wave {
-          0%, 100% { height: 25%; opacity: 0.5; }
-          50% { height: 90%; opacity: 1; }
-        }
-        @keyframes floatHeart {
-          0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
-          50% { transform: translateY(-12px) scale(1.1); opacity: 0.85; }
-        }
-      `}</style>
     </div>
   );
 }
