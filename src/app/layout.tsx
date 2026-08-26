@@ -15,10 +15,10 @@ const sans = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Happy Birthday, Esha KC ✨",
-  description: "A little cinematic birthday surprise for Esha KC",
+  title: "Happy Birthday, Esha ✨",
+  description: "A little cinematic birthday surprise for Esha",
   openGraph: {
-    title: "Happy Birthday, Esha KC ✨",
+    title: "Happy Birthday, Esha ✨",
     description: "A personal birthday experience",
   },
 };

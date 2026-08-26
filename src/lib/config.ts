@@ -1,6 +1,6 @@
 export const SITE_CONFIG = {
   person: {
-    name: "Esha KC",
+    name: "Esha",
     firstName: "Esha",
     home: "Dang",
     studying: "Kathmandu",
