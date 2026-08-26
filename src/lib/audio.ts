@@ -1,9 +1,5 @@
 /**
- * Audio manager for the birthday experience.
- * Uses Web Audio API to synthesize a warm cinematic birthday-style instrumental
- * when no external file is available. Fully original & royalty-free.
- * You can replace the synth with a real track by placing an mp3 in /public/audio/
- * and updating config.music.src
+ * Audio manager — louder levels + richer synth birthday theme.
  */
 
 type SoundType = "blow" | "gift" | "envelope" | "firework" | "click" | "whoosh";
@@ -20,7 +16,6 @@ class AudioManager {
   private musicSource: AudioBufferSourceNode | OscillatorNode | null = null;
   private musicPlaying = false;
   private musicStarted = false;
-  private reducedMotion = false;
   private muted = false;
 
   init() {
@@ -36,14 +31,12 @@ class AudioManager {
       this.masterGain.connect(this.ctx.destination);
 
       this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0.5;
+      this.musicGain.gain.value = 0.82;
       this.musicGain.connect(this.masterGain);
 
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.7;
+      this.sfxGain.gain.value = 0.95;
       this.sfxGain.connect(this.masterGain);
-
-      this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     } catch (e) {
       console.warn("AudioContext not available", e);
     }
@@ -97,49 +90,84 @@ class AudioManager {
   private playSynthLoop() {
     if (!this.ctx || !this.musicGain) return;
 
-    const notes = [
-      { f: 261.63, d: 0.35 },
-      { f: 261.63, d: 0.35 },
-      { f: 293.66, d: 0.7 },
-      { f: 261.63, d: 0.7 },
-      { f: 349.23, d: 0.7 },
-      { f: 329.63, d: 1.2 },
-      { f: 261.63, d: 0.35 },
-      { f: 261.63, d: 0.35 },
-      { f: 293.66, d: 0.7 },
-      { f: 261.63, d: 0.7 },
-      { f: 392.0, d: 0.7 },
+    // fuller arrangement — melody + soft harmony + bass
+    const melody = [
+      { f: 261.63, d: 0.32 },
+      { f: 261.63, d: 0.32 },
+      { f: 293.66, d: 0.64 },
+      { f: 261.63, d: 0.64 },
+      { f: 349.23, d: 0.64 },
+      { f: 329.63, d: 1.1 },
+      { f: 261.63, d: 0.32 },
+      { f: 261.63, d: 0.32 },
+      { f: 293.66, d: 0.64 },
+      { f: 261.63, d: 0.64 },
+      { f: 392.0, d: 0.64 },
+      { f: 349.23, d: 1.1 },
+      { f: 261.63, d: 0.32 },
+      { f: 261.63, d: 0.32 },
+      { f: 523.25, d: 0.64 },
+      { f: 440.0, d: 0.64 },
+      { f: 349.23, d: 0.64 },
+      { f: 329.63, d: 0.64 },
+      { f: 293.66, d: 1.0 },
+      { f: 466.16, d: 0.32 },
+      { f: 466.16, d: 0.32 },
+      { f: 440.0, d: 0.64 },
+      { f: 349.23, d: 0.64 },
+      { f: 392.0, d: 0.64 },
       { f: 349.23, d: 1.2 },
     ];
 
-    let time = this.ctx.currentTime + 0.1;
+    let time = this.ctx.currentTime + 0.08;
     const schedule = () => {
       if (!this.musicPlaying || !this.ctx || !this.musicGain) return;
-      notes.forEach((n) => {
+      const startT = time;
+
+      melody.forEach((n) => {
+        // main voice
         const osc = this.ctx!.createOscillator();
         const g = this.ctx!.createGain();
         osc.type = "triangle";
         osc.frequency.value = n.f;
         g.gain.setValueAtTime(0, time);
-        g.gain.linearRampToValueAtTime(0.12, time + 0.05);
+        g.gain.linearRampToValueAtTime(0.22, time + 0.04);
         g.gain.exponentialRampToValueAtTime(0.001, time + n.d);
         osc.connect(g);
         g.connect(this.musicGain!);
         osc.start(time);
         osc.stop(time + n.d + 0.05);
-        time += n.d * 0.85;
+
+        // soft octave shimmer
+        const o2 = this.ctx!.createOscillator();
+        const g2 = this.ctx!.createGain();
+        o2.type = "sine";
+        o2.frequency.value = n.f * 2;
+        g2.gain.setValueAtTime(0, time);
+        g2.gain.linearRampToValueAtTime(0.06, time + 0.05);
+        g2.gain.exponentialRampToValueAtTime(0.001, time + n.d);
+        o2.connect(g2);
+        g2.connect(this.musicGain!);
+        o2.start(time);
+        o2.stop(time + n.d + 0.05);
+
+        time += n.d * 0.88;
       });
+
+      // warm pad under whole phrase
       const pad = this.ctx.createOscillator();
       const pg = this.ctx.createGain();
       pad.type = "sine";
       pad.frequency.value = 130.81;
-      pg.gain.value = 0.04;
+      pg.gain.setValueAtTime(0, startT);
+      pg.gain.linearRampToValueAtTime(0.07, startT + 0.4);
+      pg.gain.linearRampToValueAtTime(0.001, time + 0.3);
       pad.connect(pg);
       pg.connect(this.musicGain);
-      pad.start(this.ctx.currentTime);
-      pad.stop(time + 0.5);
+      pad.start(startT);
+      pad.stop(time + 0.4);
 
-      setTimeout(schedule, (time - this.ctx.currentTime) * 1000 - 200);
+      setTimeout(schedule, Math.max(200, (time - this.ctx.currentTime) * 1000 - 250));
     };
     schedule();
   }
@@ -169,20 +197,20 @@ class AudioManager {
     const now = this.ctx.currentTime;
 
     if (type === "blow") {
-      const bufferSize = this.ctx.sampleRate * 0.6;
+      const bufferSize = this.ctx.sampleRate * 0.75;
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
       }
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
       const filter = this.ctx.createBiquadFilter();
       filter.type = "lowpass";
-      filter.frequency.value = 800;
+      filter.frequency.value = 900;
       const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.35, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      g.gain.setValueAtTime(0.55, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
       noise.connect(filter);
       filter.connect(g);
       g.connect(this.sfxGain);
@@ -194,40 +222,40 @@ class AudioManager {
         osc.type = "sine";
         osc.frequency.value = f;
         g.gain.setValueAtTime(0, now + i * 0.08);
-        g.gain.linearRampToValueAtTime(0.15, now + i * 0.08 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.4);
+        g.gain.linearRampToValueAtTime(0.28, now + i * 0.08 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.45);
         osc.connect(g);
         g.connect(this.sfxGain!);
         osc.start(now + i * 0.08);
-        osc.stop(now + i * 0.08 + 0.45);
+        osc.stop(now + i * 0.08 + 0.5);
       });
     } else if (type === "envelope") {
       const osc = this.ctx.createOscillator();
       const g = this.ctx.createGain();
       osc.type = "triangle";
       osc.frequency.setValueAtTime(400, now);
-      osc.frequency.linearRampToValueAtTime(600, now + 0.15);
-      g.gain.setValueAtTime(0.12, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.frequency.linearRampToValueAtTime(620, now + 0.15);
+      g.gain.setValueAtTime(0.22, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
       osc.connect(g);
       g.connect(this.sfxGain);
       osc.start(now);
       osc.stop(now + 0.35);
     } else if (type === "firework") {
-      const bufferSize = this.ctx.sampleRate * 0.8;
+      const bufferSize = this.ctx.sampleRate * 0.85;
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.14));
       }
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
       const filter = this.ctx.createBiquadFilter();
       filter.type = "highpass";
-      filter.frequency.value = 1200;
+      filter.frequency.value = 1000;
       const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.25, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+      g.gain.setValueAtTime(0.4, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
       noise.connect(filter);
       filter.connect(g);
       g.connect(this.sfxGain);
@@ -235,15 +263,15 @@ class AudioManager {
     } else if (type === "click") {
       const osc = this.ctx.createOscillator();
       const g = this.ctx.createGain();
-      osc.frequency.value = 800;
-      g.gain.setValueAtTime(0.08, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.frequency.value = 880;
+      g.gain.setValueAtTime(0.14, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
       osc.connect(g);
       g.connect(this.sfxGain);
       osc.start(now);
       osc.stop(now + 0.1);
     } else if (type === "whoosh") {
-      const bufferSize = this.ctx.sampleRate * 0.4;
+      const bufferSize = this.ctx.sampleRate * 0.45;
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
@@ -252,7 +280,7 @@ class AudioManager {
       const noise = this.ctx.createBufferSource();
       noise.buffer = buffer;
       const g = this.ctx.createGain();
-      g.gain.value = 0.2;
+      g.gain.value = 0.35;
       noise.connect(g);
       g.connect(this.sfxGain);
       noise.start(now);

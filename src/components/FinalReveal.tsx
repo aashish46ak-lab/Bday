@@ -9,133 +9,243 @@ interface Props {
   active: boolean;
 }
 
+/** Clean ESHA letter shapes as star points (normalized 0–1 in a letter box) */
+const LETTERS: { x: number; y: number }[][] = [
+  // E
+  [
+    { x: 0, y: 0 }, { x: 0, y: 0.5 }, { x: 0, y: 1 },
+    { x: 0.55, y: 0 }, { x: 0.45, y: 0.5 }, { x: 0.55, y: 1 },
+  ],
+  // S
+  [
+    { x: 0.55, y: 0.08 }, { x: 0.25, y: 0 }, { x: 0, y: 0.2 },
+    { x: 0.15, y: 0.45 }, { x: 0.4, y: 0.55 }, { x: 0.55, y: 0.75 },
+    { x: 0.3, y: 1 }, { x: 0, y: 0.9 },
+  ],
+  // H
+  [
+    { x: 0, y: 0 }, { x: 0, y: 0.5 }, { x: 0, y: 1 },
+    { x: 0.55, y: 0 }, { x: 0.55, y: 0.5 }, { x: 0.55, y: 1 },
+    { x: 0.27, y: 0.5 },
+  ],
+  // A
+  [
+    { x: 0, y: 1 }, { x: 0.28, y: 0 }, { x: 0.55, y: 1 },
+    { x: 0.12, y: 0.55 }, { x: 0.42, y: 0.55 },
+  ],
+];
+
 export default function FinalReveal({ active }: Props) {
   const [phase, setPhase] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!active) return;
-    audio.fadeMusic(0.25, 2);
+    audio.fadeMusic(0.35, 2);
     const timers = [
-      setTimeout(() => setPhase(1), 800),
-      setTimeout(() => setPhase(2), 2200),
-      setTimeout(() => setPhase(3), 4800),
-      setTimeout(() => setPhase(4), 6200),
-      setTimeout(() => setPhase(5), 8500),
-      setTimeout(() => setPhase(6), 11000),
+      setTimeout(() => setPhase(1), 600),
+      setTimeout(() => setPhase(2), 1800),
+      setTimeout(() => setPhase(3), 4200),
+      setTimeout(() => setPhase(4), 5600),
+      setTimeout(() => setPhase(5), 7800),
+      setTimeout(() => setPhase(6), 10000),
     ];
     return () => timers.forEach(clearTimeout);
   }, [active]);
 
   useEffect(() => {
-    if (!active || phase < 2) return;
+    if (!active || phase < 1) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-    canvas.style.width = `${window.innerWidth}px`;
-    canvas.style.height = `${window.innerHeight}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    const letters: { x: number; y: number }[][] = [
-      [{ x: 0.18, y: 0.35 }, { x: 0.18, y: 0.5 }, { x: 0.18, y: 0.65 }, { x: 0.28, y: 0.35 }, { x: 0.28, y: 0.5 }, { x: 0.28, y: 0.65 }],
-      [{ x: 0.38, y: 0.38 }, { x: 0.34, y: 0.35 }, { x: 0.3, y: 0.4 }, { x: 0.34, y: 0.5 }, { x: 0.38, y: 0.55 }, { x: 0.34, y: 0.65 }, { x: 0.3, y: 0.62 }],
-      [{ x: 0.48, y: 0.35 }, { x: 0.48, y: 0.5 }, { x: 0.48, y: 0.65 }, { x: 0.58, y: 0.35 }, { x: 0.58, y: 0.5 }, { x: 0.58, y: 0.65 }, { x: 0.48, y: 0.5 }, { x: 0.58, y: 0.5 }],
-      [{ x: 0.68, y: 0.65 }, { x: 0.73, y: 0.35 }, { x: 0.78, y: 0.65 }, { x: 0.7, y: 0.5 }, { x: 0.76, y: 0.5 }],
-    ];
-
     const w = window.innerWidth;
     const h = window.innerHeight;
-    let progress = 0;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      progress = Math.min(1, progress + 0.008);
-      letters.forEach((pts) => {
-        pts.forEach((p, i) => {
-          if (i / pts.length > progress) return;
-          const x = p.x * w;
-          const y = p.y * h;
-          ctx.beginPath();
-          ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(232, 200, 122, ${0.6 + 0.4 * progress})`;
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(x, y, 8, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(232, 200, 122, ${0.08 * progress})`;
-          ctx.fill();
+    // layout letters centered
+    const letterW = Math.min(w * 0.16, 72);
+    const letterH = letterW * 1.35;
+    const gap = letterW * 0.35;
+    const totalW = letterW * 4 + gap * 3;
+    const startX = (w - totalW) / 2;
+    const startY = h * 0.32;
+
+    type Star = { x: number; y: number; delay: number; tw: number };
+    const stars: Star[] = [];
+    LETTERS.forEach((pts, li) => {
+      const ox = startX + li * (letterW + gap);
+      pts.forEach((p, pi) => {
+        stars.push({
+          x: ox + p.x * letterW,
+          y: startY + p.y * letterH,
+          delay: (li * 0.12 + pi * 0.04) * 60,
+          tw: Math.random() * Math.PI * 2,
         });
-        ctx.strokeStyle = `rgba(245, 230, 200, ${0.35 * progress})`;
+      });
+    });
+
+    // ambient background stars
+    const bg = Array.from({ length: 40 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      s: 0.4 + Math.random() * 1.2,
+      tw: Math.random() * Math.PI * 2,
+    }));
+
+    let frame = 0;
+    let raf = 0;
+    const draw = () => {
+      frame += 1;
+      ctx.clearRect(0, 0, w, h);
+
+      bg.forEach((b) => {
+        b.tw += 0.03;
+        const a = 0.15 + 0.2 * (0.5 + 0.5 * Math.sin(b.tw));
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.s, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,248,240,${a})`;
+        ctx.fill();
+      });
+
+      // soft connecting glow between letter points (subtle, not messy lines)
+      LETTERS.forEach((pts, li) => {
+        const ox = startX + li * (letterW + gap);
+        const reveal = Math.min(1, Math.max(0, (frame - li * 8) / 50));
+        if (reveal <= 0) return;
+        ctx.strokeStyle = `rgba(232, 200, 122, ${0.12 * reveal})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         pts.forEach((p, i) => {
-          if (i / pts.length > progress) return;
-          const x = p.x * w;
-          const y = p.y * h;
+          const x = ox + p.x * letterW;
+          const y = startY + p.y * letterH;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
       });
-      if (progress < 1) requestAnimationFrame(draw);
+
+      stars.forEach((s) => {
+        const local = Math.max(0, frame - s.delay);
+        if (local <= 0) return;
+        const appear = Math.min(1, local / 20);
+        s.tw += 0.05;
+        const pulse = 0.7 + 0.3 * Math.sin(s.tw);
+        const r = (2.2 + pulse * 1.2) * appear;
+
+        // glow
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 5);
+        g.addColorStop(0, `rgba(232, 200, 122, ${0.35 * appear * pulse})`);
+        g.addColorStop(1, "transparent");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r * 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // core
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 248, 240, ${0.85 * appear})`;
+        ctx.fill();
+      });
+
+      raf = requestAnimationFrame(draw);
     };
-    draw();
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
   }, [active, phase]);
 
   if (!active) return null;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-[#050509]">
-      {phase >= 1 && phase < 4 && (
+      {phase >= 1 && phase < 5 && (
         <canvas ref={canvasRef} className="absolute inset-0" aria-hidden />
       )}
 
       {phase >= 3 && phase < 5 && (
-        <h1 className="relative z-10 text-5xl sm:text-7xl font-light tracking-[0.2em] text-[#f5e6c8]" style={{ animation: "fadeScale 1.5s ease-out forwards", textShadow: "0 0 30px rgba(232,200,122,0.5)" }}>
+        <h1
+          className="relative z-10 text-5xl sm:text-7xl font-light tracking-[0.35em] text-[#f5e6c8] pl-[0.35em]"
+          style={{
+            animation: "fadeScale 1.4s ease-out forwards",
+            textShadow: "0 0 40px rgba(232,200,122,0.55)",
+          }}
+        >
           ESHA
         </h1>
       )}
 
-      {phase >= 4 && <Fireworks active intensity={1.2} />}
+      {phase >= 4 && <Fireworks active intensity={1.15} />}
 
       {phase >= 4 && (
-        <div className="relative z-20 text-center px-6 space-y-6 max-w-md">
-          <h2 className="text-3xl sm:text-4xl font-light text-[#fff8f0]" style={{ animation: "fadeScale 1s ease-out 0.3s both" }}>
-            HAPPY BIRTHDAY, {SITE_CONFIG.person.name} ❤️
+        <div className="relative z-20 text-center px-6 space-y-5 max-w-md">
+          <h2
+            className="text-3xl sm:text-4xl font-light text-[#fff8f0]"
+            style={{ animation: "fadeScale 1s ease-out 0.25s both" }}
+          >
+            Happy Birthday, Esha
           </h2>
           {phase >= 5 && (
-            <p className="text-base sm:text-lg text-[#c9b8e8]/90 font-light leading-relaxed" style={{ animation: "fadeUp 1s ease-out both" }}>
-              May this year give you countless reasons to smile, beautiful memories to keep, and dreams that come true.
-            </p>
-          )}
-          {phase >= 5 && (
-            <p className="text-[#e8c87a] text-lg font-light" style={{ animation: "fadeUp 1s ease-out 0.4s both" }}>
-              Have the happiest birthday, Esha. ✨
-            </p>
+            <>
+              <p
+                className="text-base sm:text-lg text-[#c9b8e8]/90 font-light leading-relaxed"
+                style={{ animation: "fadeUp 1s ease-out both" }}
+              >
+                May this year be gentle with you, bright with joy, and full of
+                moments that make you smile for no reason at all.
+              </p>
+              <p
+                className="text-[#e8c87a] text-lg font-light"
+                style={{ animation: "fadeUp 1s ease-out 0.35s both" }}
+              >
+                जन्मदिनको हार्दिक शुभकामना ✨
+              </p>
+            </>
           )}
         </div>
       )}
 
       {phase >= 6 && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 px-5 py-4 rounded-xl border border-[#e8c87a]/20 bg-[#0a0f1c]/70 backdrop-blur-md text-center" style={{ animation: "fadeUp 1s ease-out both" }}>
+        <div
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 px-6 py-4 rounded-2xl border border-[#e8c87a]/20 bg-[#0a0f1c]/75 backdrop-blur-md text-center"
+          style={{ animation: "fadeUp 1s ease-out both" }}
+        >
           <p className="text-[#f5e6c8] text-sm tracking-wide">{SITE_CONFIG.person.name}</p>
-          <p className="text-xs text-[#c9b8e8]/80 mt-1">🎂 {SITE_CONFIG.person.dobBS}</p>
-          <p className="text-xs text-[#c9b8e8]/70 mt-0.5">📍 {SITE_CONFIG.person.home} · 🎓 {SITE_CONFIG.person.studying}</p>
+          <p className="text-xs text-[#c9b8e8]/85 mt-1.5">
+            🎂 {SITE_CONFIG.person.dobBS}
+          </p>
+          <p className="text-xs text-[#c9b8e8]/70 mt-1">
+            📍 {SITE_CONFIG.person.home}
+          </p>
         </div>
       )}
 
       <style jsx>{`
         @keyframes fadeScale {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
+          from {
+            opacity: 0;
+            transform: scale(0.88);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>

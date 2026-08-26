@@ -17,6 +17,17 @@ interface WindParticle {
   life: number;
 }
 
+interface Confetti {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rot: number;
+  color: string;
+  life: number;
+}
+
 export default function BirthdayCake({ onBlownOut }: Props) {
   const [visible, setVisible] = useState(false);
   const [lit, setLit] = useState(true);
@@ -25,19 +36,23 @@ export default function BirthdayCake({ onBlownOut }: Props) {
     Array(CANDLE_COUNT).fill(false)
   );
   const [smoke, setSmoke] = useState(false);
-  const [micActive, setMicActive] = useState(false);
+  const [micState, setMicState] = useState<"loading" | "on" | "denied">("loading");
   const [windParticles, setWindParticles] = useState<WindParticle[]>([]);
+  const [confetti, setConfetti] = useState<Confetti[]>([]);
+  const [listeningPulse, setListeningPulse] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef(0);
   const windId = useRef(0);
+  const confettiId = useRef(0);
+  const blownRef = useRef(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 300);
+    const t = setTimeout(() => setVisible(true), 280);
     return () => clearTimeout(t);
   }, []);
 
-  // animate wind particles while blowing
+  // wind particles while blowing
   useEffect(() => {
     if (!blowing) return;
     let frame = 0;
@@ -48,21 +63,20 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           .map((p) => ({
             ...p,
             x: p.x + p.vx,
-            y: p.y + (Math.random() - 0.5) * 1.2,
+            y: p.y + (Math.random() - 0.5) * 1.4,
             life: p.life - 1,
           }))
           .filter((p) => p.life > 0)
       );
-      // keep spawning soft wind streaks for ~1.2s
-      if (frame < 40) {
+      if (frame < 50) {
         setWindParticles((prev) => [
           ...prev,
-          ...Array.from({ length: 3 }, () => ({
+          ...Array.from({ length: 4 }, () => ({
             id: windId.current++,
-            x: 20 + Math.random() * 40,
-            y: 30 + Math.random() * 50,
-            vx: 4 + Math.random() * 6,
-            life: 18 + Math.floor(Math.random() * 12),
+            x: 10 + Math.random() * 35,
+            y: 25 + Math.random() * 55,
+            vx: 5 + Math.random() * 7,
+            life: 16 + Math.floor(Math.random() * 14),
           })),
         ]);
       }
@@ -72,18 +86,53 @@ export default function BirthdayCake({ onBlownOut }: Props) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [blowing]);
 
+  // confetti after all out
+  useEffect(() => {
+    if (!smoke) return;
+    const colors = ["#e8c87a", "#e8b4c8", "#c9b8e8", "#f5e6c8", "#fff8f0", "#ff9f7a"];
+    const pieces: Confetti[] = Array.from({ length: 48 }, () => ({
+      id: confettiId.current++,
+      x: 40 + Math.random() * 20,
+      y: 35 + Math.random() * 10,
+      vx: (Math.random() - 0.5) * 3.5,
+      vy: -2 - Math.random() * 3,
+      rot: Math.random() * 360,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 60 + Math.random() * 40,
+    }));
+    setConfetti(pieces);
+    let frame = 0;
+    const tick = () => {
+      frame += 1;
+      setConfetti((prev) =>
+        prev
+          .map((c) => ({
+            ...c,
+            x: c.x + c.vx,
+            y: c.y + c.vy,
+            vy: c.vy + 0.08,
+            rot: c.rot + 6,
+            life: c.life - 1,
+          }))
+          .filter((c) => c.life > 0)
+      );
+      if (frame < 90) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [smoke]);
+
   const extinguishAll = useCallback(() => {
-    if (!lit || blowing) return;
+    if (!lit || blowing || blownRef.current) return;
+    blownRef.current = true;
     setBlowing(true);
     audio.playSfx("blow");
 
-    // candles lean in the wind then go out one by one (left → right)
     let i = 0;
     const step = () => {
       if (i >= CANDLE_COUNT) {
         setLit(false);
         setSmoke(true);
-        setTimeout(() => onBlownOut(), 2000);
+        setTimeout(() => onBlownOut(), 2200);
         return;
       }
       setExtinguished((prev) => {
@@ -92,53 +141,52 @@ export default function BirthdayCake({ onBlownOut }: Props) {
         return next;
       });
       i += 1;
-      setTimeout(step, 220);
+      setTimeout(step, 200);
     };
-    // short wind delay before first candle dies
-    setTimeout(step, 280);
+    setTimeout(step, 320);
   }, [lit, blowing, onBlownOut]);
 
-  useEffect(() => {
-    let mounted = true;
-    const setupMic = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (!mounted) {
-          stream.getTracks().forEach((t) => t.stop());
+  const startMic = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.35;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      setMicState("on");
+
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const check = () => {
+        if (blownRef.current) return;
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / data.length;
+        setListeningPulse(Math.min(1, avg / 80));
+        if (avg > 42) {
+          extinguishAll();
           return;
         }
-        streamRef.current = stream;
-        const ctx = new AudioContext();
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        analyserRef.current = analyser;
-        setMicActive(true);
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        const check = () => {
-          if (!mounted || !lit) return;
-          analyser.getByteFrequencyData(data);
-          const avg = data.reduce((a, b) => a + b, 0) / data.length;
-          if (avg > 55) {
-            extinguishAll();
-            return;
-          }
-          rafRef.current = requestAnimationFrame(check);
-        };
         rafRef.current = requestAnimationFrame(check);
-      } catch {
-        // mic denied — tap still works
-      }
-    };
-    const t = setTimeout(setupMic, 2500);
+      };
+      rafRef.current = requestAnimationFrame(check);
+    } catch {
+      setMicState("denied");
+    }
+  }, [extinguishAll]);
+
+  useEffect(() => {
+    const t = setTimeout(() => startMic(), 1200);
     return () => {
-      mounted = false;
-      cancelAnimationFrame(rafRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
       clearTimeout(t);
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach((tr) => tr.stop());
     };
-  }, [lit, extinguishAll]);
+  }, [startMic]);
 
   return (
     <div
@@ -146,247 +194,346 @@ export default function BirthdayCake({ onBlownOut }: Props) {
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="text-center mb-8 space-y-2">
+      <div className="text-center mb-6 space-y-2">
         <p className="text-xl sm:text-2xl text-[#f5e6c8] font-light">
-          Make a wish, Esha. ✨
+          Make a wish, Esha ✨
         </p>
-        <p className="text-sm text-[#c9b8e8]/70">Whenever you&apos;re ready...</p>
+        <p className="text-sm text-[#c9b8e8]/70">Then blow out the candles</p>
       </div>
 
-      <div className="relative select-none" style={{ width: 240, height: 220 }}>
-        {/* wind particles overlay */}
+      {/* 3D cake stage */}
+      <div className="relative select-none" style={{ width: 280, height: 260 }}>
+        {/* soft table glow */}
+        <div
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 w-64 h-10 rounded-full blur-xl opacity-50"
+          style={{
+            background:
+              "radial-gradient(ellipse, rgba(232,200,122,0.35) 0%, transparent 70%)",
+          }}
+        />
+
+        {/* wind */}
         {blowing && (
           <div className="absolute inset-0 pointer-events-none overflow-hidden z-30">
             {windParticles.map((p) => (
               <div
                 key={p.id}
-                className="absolute rounded-full bg-white/25"
+                className="absolute rounded-full"
                 style={{
                   left: `${p.x}%`,
                   top: `${p.y}%`,
-                  width: 3 + (p.life % 4),
-                  height: 1.5,
-                  opacity: Math.min(1, p.life / 20),
-                  transform: "scaleX(2)",
-                  boxShadow: "0 0 6px rgba(255,255,255,0.35)",
+                  width: 4 + (p.life % 5),
+                  height: 2,
+                  opacity: Math.min(0.9, p.life / 18),
+                  background: "rgba(255,255,255,0.35)",
+                  boxShadow: "0 0 8px rgba(255,255,255,0.4)",
+                  transform: "scaleX(2.2)",
                 }}
               />
             ))}
           </div>
         )}
 
-        {/* plate */}
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-56 h-3 rounded-full bg-gradient-to-b from-[#3a3a45] to-[#1a1a22]"
-          style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}
-        />
+        {/* confetti */}
+        {confetti.map((c) => (
+          <div
+            key={c.id}
+            className="absolute z-40 pointer-events-none"
+            style={{
+              left: `${c.x}%`,
+              top: `${c.y}%`,
+              width: 6,
+              height: 4,
+              background: c.color,
+              opacity: Math.min(1, c.life / 30),
+              transform: `rotate(${c.rot}deg)`,
+              borderRadius: 1,
+            }}
+          />
+        ))}
 
-        {/* bottom tier */}
+        {/* plate — 3D ellipse */}
         <div
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 w-48 h-[70px] rounded-t-lg"
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-60 h-5 rounded-[50%]"
           style={{
             background:
-              "linear-gradient(180deg, #f8e8d0 0%, #e8c9a0 40%, #d4a574 100%)",
+              "linear-gradient(180deg, #5a5a68 0%, #2a2a35 45%, #1a1a22 100%)",
             boxShadow:
-              "inset 0 -8px 16px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.3)",
+              "0 6px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.12)",
+          }}
+        />
+        <div
+          className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-52 h-2 rounded-[50%] opacity-40"
+          style={{ background: "rgba(255,248,240,0.15)" }}
+        />
+
+        {/* bottom tier — 3D cylinder feel */}
+        <div
+          className="absolute bottom-[8px] left-1/2 -translate-x-1/2 w-48 h-[78px] rounded-t-[18px]"
+          style={{
+            background:
+              "linear-gradient(90deg, #c9a06a 0%, #f5e0c0 18%, #fff0d8 35%, #f0d4a8 55%, #d4a878 78%, #b88850 100%)",
+            boxShadow:
+              "inset 0 -14px 24px rgba(0,0,0,0.22), inset 0 4px 8px rgba(255,255,255,0.25), 0 8px 20px rgba(0,0,0,0.35)",
           }}
         >
-          <div className="absolute -top-2 left-0 right-0 h-4 overflow-hidden">
-            {[...Array(8)].map((_, i) => (
+          {/* frosting drip edge */}
+          <div className="absolute -top-3 left-0 right-0 h-6 flex justify-around px-1">
+            {[...Array(9)].map((_, i) => (
               <div
                 key={i}
-                className="absolute top-0 w-5 h-5 rounded-full bg-[#fff8f0]"
-                style={{ left: `${i * 12.5 + 2}%`, opacity: 0.95 }}
+                className="w-5 h-5 rounded-full"
+                style={{
+                  background:
+                    "radial-gradient(circle at 35% 30%, #fffaf0, #f0e0c8)",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                  marginTop: i % 2 === 0 ? 0 : 3,
+                }}
               />
             ))}
           </div>
+          {/* side highlight */}
+          <div
+            className="absolute inset-y-2 left-2 w-3 rounded-full opacity-30"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.5), transparent)",
+            }}
+          />
         </div>
 
         {/* top tier */}
         <div
-          className="absolute bottom-[78px] left-1/2 -translate-x-1/2 w-32 h-14 rounded-t-md"
+          className="absolute bottom-[82px] left-1/2 -translate-x-1/2 w-32 h-[58px] rounded-t-[14px]"
           style={{
             background:
-              "linear-gradient(180deg, #fff0e0 0%, #f0d4b0 50%, #e0b888 100%)",
-            boxShadow: "inset 0 -6px 12px rgba(0,0,0,0.12)",
+              "linear-gradient(90deg, #c89868 0%, #f8e8d0 22%, #fff5e8 40%, #f0d8b0 60%, #d4a878 85%, #b88850 100%)",
+            boxShadow:
+              "inset 0 -10px 18px rgba(0,0,0,0.18), inset 0 3px 6px rgba(255,255,255,0.3), 0 6px 14px rgba(0,0,0,0.28)",
           }}
         >
-          <div className="absolute -top-1.5 left-0 right-0 h-3">
-            {[...Array(5)].map((_, i) => (
+          <div className="absolute -top-2.5 left-0 right-0 h-5 flex justify-around px-1">
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="absolute top-0 w-4 h-4 rounded-full bg-[#fff8f0]"
-                style={{ left: `${i * 18 + 6}%` }}
+                className="w-4 h-4 rounded-full"
+                style={{
+                  background:
+                    "radial-gradient(circle at 35% 30%, #fffaf0, #f0e0c8)",
+                  boxShadow: "0 2px 3px rgba(0,0,0,0.12)",
+                }}
               />
             ))}
           </div>
+          <div
+            className="absolute inset-y-1 left-1.5 w-2.5 rounded-full opacity-35"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.55), transparent)",
+            }}
+          />
         </div>
 
         {/* candles */}
-        <div className="absolute bottom-[128px] left-1/2 -translate-x-1/2 flex gap-3.5">
+        <div className="absolute bottom-[136px] left-1/2 -translate-x-1/2 flex gap-4">
           {[...Array(CANDLE_COUNT)].map((_, i) => {
             const isOut = extinguished[i];
             const isLeaning = blowing && !isOut;
             return (
               <div key={i} className="relative flex flex-col items-center">
-                {/* flame */}
                 {!isOut && lit && (
                   <div
-                    className={`relative -mb-0.5 transition-transform duration-300 ${
-                      isLeaning ? "flame-wind" : ""
-                    }`}
-                    style={{
-                      transformOrigin: "bottom center",
-                      animationDelay: `${i * 0.08}s`,
-                    }}
+                    className={`relative -mb-0.5 ${isLeaning ? "flame-wind" : ""}`}
+                    style={{ transformOrigin: "bottom center" }}
                   >
+                    {/* outer glow */}
                     <div
-                      className="w-3 h-5 rounded-full origin-bottom candle-flame"
+                      className="absolute -inset-3 rounded-full candle-glow"
                       style={{
                         background:
-                          "radial-gradient(ellipse at center bottom, #fff8e0 0%, #ffcc66 28%, #ff8844 65%, transparent 100%)",
-                        animationDelay: `${i * 0.12}s`,
-                        filter: "blur(0.2px)",
+                          "radial-gradient(circle, rgba(255,180,60,0.45) 0%, transparent 70%)",
+                        animationDelay: `${i * 0.1}s`,
                       }}
                     />
+                    {/* flame body */}
                     <div
-                      className="absolute inset-0 w-5 h-6 -left-1 rounded-full candle-glow"
+                      className="w-3.5 h-6 rounded-[50%_50%_50%_50%/60%_60%_40%_40%] candle-flame relative z-10"
                       style={{
                         background:
-                          "radial-gradient(circle, rgba(255,180,80,0.55) 0%, transparent 70%)",
-                        animationDelay: `${i * 0.12}s`,
+                          "radial-gradient(ellipse at 50% 80%, #fffef5 0%, #ffe08a 25%, #ff9a3c 55%, #ff5a1a 85%, transparent 100%)",
+                        animationDelay: `${i * 0.11}s`,
+                        filter: "blur(0.15px)",
+                        boxShadow: "0 0 10px rgba(255,160,50,0.7)",
                       }}
                     />
                   </div>
                 )}
 
-                {/* smoke after extinguish */}
                 {isOut && smoke && (
-                  <div className="relative h-8 w-4 -mb-1 flex justify-center">
+                  <div className="relative h-10 w-5 -mb-1 flex justify-center">
                     <div
                       className="smoke-puff"
-                      style={{ animationDelay: `${i * 0.12}s` }}
+                      style={{ animationDelay: `${i * 0.1}s` }}
                     />
                     <div
                       className="smoke-puff smoke-puff-2"
-                      style={{ animationDelay: `${i * 0.12 + 0.25}s` }}
+                      style={{ animationDelay: `${i * 0.1 + 0.2}s` }}
                     />
                   </div>
                 )}
 
-                {/* wick spark die */}
                 {isOut && !smoke && (
                   <div
-                    className="w-1.5 h-1.5 rounded-full bg-[#ffaa44] ember"
-                    style={{ animationDelay: `${i * 0.05}s` }}
+                    className="w-1.5 h-1.5 rounded-full bg-[#ffaa44] ember mb-0.5"
+                    style={{ animationDelay: `${i * 0.04}s` }}
                   />
                 )}
 
-                {/* candle body */}
+                {/* candle stick — 3D */}
                 <div
-                  className="w-2.5 h-8 rounded-sm"
+                  className="w-3 h-9 rounded-sm relative overflow-hidden"
                   style={{
                     background:
                       i % 2 === 0
-                        ? "linear-gradient(90deg, #f0e0c0, #e8d4a8, #f0e0c0)"
-                        : "linear-gradient(90deg, #e8c0d0, #d8a8b8, #e8c0d0)",
-                    boxShadow: "1px 0 2px rgba(0,0,0,0.25)",
+                        ? "linear-gradient(90deg, #c8b090 0%, #f5ecd8 35%, #e8dcc0 65%, #b8a080 100%)"
+                        : "linear-gradient(90deg, #c090a0 0%, #f0d0dc 35%, #e0b8c8 65%, #b08090 100%)",
+                    boxShadow:
+                      "2px 0 3px rgba(0,0,0,0.2), inset 1px 0 0 rgba(255,255,255,0.35)",
                   }}
-                />
+                >
+                  {/* wick */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-1.5 bg-[#2a2a2a]" />
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* mic-only UI — no blow button */}
       {lit && !blowing && (
-        <div className="mt-10 space-y-3 text-center">
-          <button
-            onClick={extinguishAll}
-            className="px-7 py-3.5 rounded-full border border-[#e8c87a]/50 text-[#f5e6c8] text-sm tracking-wide hover:bg-[#e8c87a]/10 hover:shadow-[0_0_24px_rgba(232,200,122,0.2)] transition-all active:scale-95"
-          >
-            🌬️ Blow out the candles
-          </button>
-          {micActive && (
-            <p className="text-xs text-[#c9b8e8]/60">
-              or blow toward your microphone
+        <div className="mt-8 text-center space-y-3 max-w-xs">
+          {micState === "loading" && (
+            <p className="text-sm text-[#c9b8e8]/70 animate-pulse">
+              Preparing microphone…
             </p>
+          )}
+          {micState === "on" && (
+            <>
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className="w-16 h-16 rounded-full border-2 border-[#e8c87a]/40 flex items-center justify-center relative"
+                  style={{
+                    boxShadow: `0 0 ${12 + listeningPulse * 40}px rgba(232,200,122,${
+                      0.15 + listeningPulse * 0.45
+                    })`,
+                  }}
+                >
+                  <span className="text-2xl">🌬️</span>
+                  <div
+                    className="absolute inset-0 rounded-full border border-[#e8c87a]/30"
+                    style={{
+                      transform: `scale(${1 + listeningPulse * 0.45})`,
+                      opacity: 0.3 + listeningPulse * 0.5,
+                      transition: "transform 0.08s linear",
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-[#f5e6c8]">Blow into your mic</p>
+                <p className="text-xs text-[#c9b8e8]/55">
+                  Hold the phone near you and blow gently
+                </p>
+              </div>
+            </>
+          )}
+          {micState === "denied" && (
+            <div className="space-y-3">
+              <p className="text-sm text-[#c9b8e8]/80">
+                Microphone needed to blow out the candles
+              </p>
+              <button
+                onClick={startMic}
+                className="px-5 py-2.5 rounded-full border border-[#e8c87a]/45 text-[#f5e6c8] text-sm hover:bg-[#e8c87a]/10 transition-all"
+              >
+                Enable microphone
+              </button>
+            </div>
           )}
         </div>
       )}
 
       {blowing && lit && (
-        <p className="mt-8 text-sm text-[#c9b8e8]/70 animate-pulse">
-          Make a wish...
+        <p className="mt-8 text-sm text-[#c9b8e8]/75 animate-pulse">
+          Make a wish…
         </p>
       )}
 
       <style jsx>{`
         .candle-flame {
-          animation: flicker 0.35s ease-in-out infinite alternate;
+          animation: flicker 0.32s ease-in-out infinite alternate;
         }
         .candle-glow {
-          animation: glowPulse 1.1s ease-in-out infinite alternate;
+          animation: glowPulse 1s ease-in-out infinite alternate;
         }
         .flame-wind {
-          animation: windLean 0.18s ease-in-out infinite alternate;
+          animation: windLean 0.16s ease-in-out infinite alternate;
         }
         @keyframes flicker {
           0% {
-            transform: scaleY(1) scaleX(1) rotate(-2deg);
-            opacity: 0.92;
+            transform: scaleY(1) scaleX(1) rotate(-3deg);
+            opacity: 0.9;
           }
           100% {
-            transform: scaleY(1.18) scaleX(0.88) rotate(3deg);
+            transform: scaleY(1.2) scaleX(0.85) rotate(4deg);
             opacity: 1;
           }
         }
         @keyframes glowPulse {
           0% {
-            opacity: 0.28;
+            opacity: 0.35;
             transform: scale(1);
           }
           100% {
-            opacity: 0.55;
-            transform: scale(1.25);
+            opacity: 0.7;
+            transform: scale(1.3);
           }
         }
         @keyframes windLean {
           0% {
-            transform: rotate(12deg) scaleY(0.85) scaleX(1.15) translateX(2px);
-            opacity: 0.7;
+            transform: rotate(14deg) scaleY(0.82) scaleX(1.2) translateX(3px);
+            opacity: 0.65;
           }
           100% {
-            transform: rotate(22deg) scaleY(0.7) scaleX(1.3) translateX(4px);
-            opacity: 0.45;
+            transform: rotate(26deg) scaleY(0.65) scaleX(1.35) translateX(6px);
+            opacity: 0.35;
           }
         }
         .smoke-puff {
           position: absolute;
           bottom: 0;
-          width: 8px;
-          height: 8px;
+          width: 10px;
+          height: 10px;
           border-radius: 50%;
-          background: rgba(190, 190, 200, 0.45);
-          animation: smokeUp 1.6s ease-out forwards;
+          background: rgba(200, 200, 210, 0.5);
+          animation: smokeUp 1.7s ease-out forwards;
         }
         .smoke-puff-2 {
-          width: 6px;
-          height: 6px;
-          left: 4px;
+          width: 7px;
+          height: 7px;
+          left: 5px;
         }
         @keyframes smokeUp {
           0% {
-            opacity: 0.55;
-            transform: translateY(0) scale(0.6);
+            opacity: 0.6;
+            transform: translateY(0) scale(0.5);
           }
           100% {
             opacity: 0;
-            transform: translateY(-36px) scale(2.2) translateX(6px);
+            transform: translateY(-42px) scale(2.4) translateX(8px);
           }
         }
         .ember {
-          animation: emberDie 0.4s ease-out forwards;
+          animation: emberDie 0.45s ease-out forwards;
         }
         @keyframes emberDie {
           0% {
@@ -395,7 +542,7 @@ export default function BirthdayCake({ onBlownOut }: Props) {
           }
           100% {
             opacity: 0;
-            transform: scale(0.3);
+            transform: scale(0.2);
           }
         }
       `}</style>

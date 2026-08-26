@@ -2,14 +2,14 @@ export const SITE_CONFIG = {
   person: {
     name: "Esha",
     firstName: "Esha",
-    home: "Dang",
+    home: "Dang, Nepal",
     studying: "Kathmandu",
     dobBS: "Ashoj 15, 2064 B.S.",
   },
   music: {
     src: "/audio/birthday-theme.mp3",
     title: "Birthday Theme for Esha",
-    volume: 0.55,
+    volume: 0.85,
   },
   colors: {
     bg: "#050509",
