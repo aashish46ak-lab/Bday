@@ -5,9 +5,10 @@ import { audio } from "@/lib/audio";
 
 interface Props {
   onNext: () => void;
+  onBack?: () => void;
 }
 
-export default function FlowerCard({ onNext }: Props) {
+export default function FlowerCard({ onNext, onBack }: Props) {
   const [bloomed, setBloomed] = useState(0);
 
   const bloom = () => {
@@ -18,13 +19,31 @@ export default function FlowerCard({ onNext }: Props) {
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
-      <div className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center" style={{ animation: "cardIn 0.5s ease-out both" }}>
-        <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-1">Beautiful flowers for you</p>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
+      <div
+        className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center"
+        style={{ animation: "cardIn 0.5s ease-out both" }}
+      >
+        <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-1">
+          Beautiful flowers for you
+        </p>
         <h2 className="text-lg text-[#4a3038] mb-6" style={{ fontFamily: "Georgia, serif" }}>
           A little bouquet
         </h2>
 
-        <button onClick={bloom} className="relative mx-auto block active:scale-95 transition-transform" style={{ width: 180, height: 160 }}>
+        <button
+          onClick={bloom}
+          className="relative mx-auto block active:scale-95 transition-transform"
+          style={{ width: 180, height: 160 }}
+        >
           <div className="absolute left-1/2 bottom-4 w-1 h-16 bg-[#7a9a6a] -translate-x-1/2 rounded-full" />
           {[
             { x: 50, y: 30 },
@@ -52,7 +71,9 @@ export default function FlowerCard({ onNext }: Props) {
         </button>
 
         <p className="mt-4 text-sm text-[#8a6870] italic">
-          {bloomed < 5 ? "Tap to bloom the flowers" : "Beautiful flowers \u2014 and you, even more."}
+          {bloomed < 5
+            ? "Tap to bloom the flowers"
+            : "Beautiful flowers — and you, even more."}
         </p>
       </div>
 

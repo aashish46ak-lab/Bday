@@ -5,9 +5,10 @@ import { audio } from "@/lib/audio";
 
 interface Props {
   onNext: () => void;
+  onBack?: () => void;
 }
 
-export default function LoveLetter({ onNext }: Props) {
+export default function LoveLetter({ onNext, onBack }: Props) {
   const [opened, setOpened] = useState(false);
 
   const open = () => {
@@ -18,6 +19,14 @@ export default function LoveLetter({ onNext }: Props) {
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
       {!opened ? (
         <div className="paper-card w-full max-w-[320px] rounded-2xl p-8 text-center" style={{ animation: "cardIn 0.6s ease-out both" }}>
           <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-4">A note for you</p>
@@ -25,6 +34,10 @@ export default function LoveLetter({ onNext }: Props) {
             <div
               className="absolute inset-0 rounded-sm border-2 border-[#c45c6a]/40 bg-[#fff5f2]"
               style={{ boxShadow: "0 6px 16px rgba(196,92,106,0.15)" }}
+            />
+            <div
+              className="absolute left-0 right-0 top-0 h-0 border-l-[80px] border-r-[80px] border-t-[50px] border-l-transparent border-r-transparent border-t-[#e8a0b0]/50"
+              style={{ width: 0, margin: "0 auto", left: "50%", transform: "translateX(-50%)" }}
             />
             <button
               onClick={open}

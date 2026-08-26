@@ -4,12 +4,25 @@ import { ESHA_PHOTO } from "@/lib/eshaPhoto";
 
 interface Props {
   onNext: () => void;
+  onBack?: () => void;
 }
 
-export default function PhotoCollage({ onNext }: Props) {
+export default function PhotoCollage({ onNext, onBack }: Props) {
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
-      <div className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center" style={{ animation: "cardIn 0.5s ease-out both" }}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
+      <div
+        className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center"
+        style={{ animation: "cardIn 0.5s ease-out both" }}
+      >
         <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-1">A moment</p>
         <h2 className="text-lg text-[#4a3038] mb-5" style={{ fontFamily: "Georgia, serif" }}>
           For the scrapbook
@@ -27,8 +40,11 @@ export default function PhotoCollage({ onNext }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={ESHA_PHOTO} alt="Esha" className="w-full h-full object-cover" />
           </div>
-          <p className="mt-2 text-xs text-[#8a6870] italic" style={{ fontFamily: "Georgia, serif" }}>
-            Esha \u00b7 Ashoj 15
+          <p
+            className="mt-2 text-xs text-[#8a6870] italic"
+            style={{ fontFamily: "Georgia, serif" }}
+          >
+            Esha · Ashoj 15
           </p>
         </div>
 

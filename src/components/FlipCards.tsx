@@ -5,6 +5,7 @@ import { audio } from "@/lib/audio";
 
 interface Props {
   onNext: () => void;
+  onBack?: () => void;
 }
 
 const CARDS = [
@@ -13,21 +14,33 @@ const CARDS = [
   { id: "smile", front: "✨", label: "Smiles", back: "A lot of reasons to smile this year." },
 ];
 
-export default function FlipCards({ onNext }: Props) {
+export default function FlipCards({ onNext, onBack }: Props) {
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
 
   const flip = (id: string) => {
     if (flipped[id]) return;
     audio.playSfx("envelope");
-    setFlipped({ ...flipped, [id]: true });
+    setFlipped((prev) => ({ ...prev, [id]: true }));
   };
 
   const all = Object.keys(flipped).length >= CARDS.length;
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5 py-10">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
       <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-2">Little things</p>
-      <h2 className="text-xl text-[#4a3038] mb-6 text-center" style={{ fontFamily: "Georgia, serif" }}>
+      <h2
+        className="text-xl text-[#4a3038] mb-6 text-center"
+        style={{ fontFamily: "Georgia, serif" }}
+      >
         Open each card
       </h2>
 
@@ -65,7 +78,10 @@ export default function FlipCards({ onNext }: Props) {
                     border: "1.5px solid rgba(196,92,106,0.3)",
                   }}
                 >
-                  <p className="text-xs text-[#4a3038] leading-relaxed text-center" style={{ fontFamily: "Georgia, serif" }}>
+                  <p
+                    className="text-xs text-[#4a3038] leading-relaxed text-center"
+                    style={{ fontFamily: "Georgia, serif" }}
+                  >
                     {c.back}
                   </p>
                 </div>
@@ -79,7 +95,10 @@ export default function FlipCards({ onNext }: Props) {
         <button
           onClick={onNext}
           className="mt-8 px-7 py-2.5 rounded-full text-sm text-white active:scale-95"
-          style={{ background: "linear-gradient(135deg, #d4788a, #c45c6a)", animation: "cardIn 0.5s ease-out" }}
+          style={{
+            background: "linear-gradient(135deg, #d4788a, #c45c6a)",
+            animation: "cardIn 0.5s ease-out",
+          }}
         >
           Almost there →
         </button>
