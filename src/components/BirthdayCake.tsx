@@ -4,202 +4,171 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { audio } from "@/lib/audio";
 
 interface Props {
-  onBlownOut: () => void;
+  onDone: () => void;
 }
 
-const CANDLE_COUNT = 3;
-const BLOW_THRESHOLD = 48;
-const FULL_BLOW_FRAMES = 40;
+const CANDLES = 3;
+const THRESHOLD = 48;
+const FULL = 36;
 
-export default function BirthdayCake({ onBlownOut }: Props) {
-  const [visible, setVisible] = useState(false);
-  const [extinguished, setExtinguished] = useState<boolean[]>(Array(CANDLE_COUNT).fill(false));
+export default function BirthdayCake({ onDone }: Props) {
+  const [extinguished, setExt] = useState<boolean[]>(Array(CANDLES).fill(false));
   const [leaning, setLeaning] = useState(false);
-  const [micState, setMicState] = useState<"loading" | "on" | "denied">("loading");
-  const [blowProgress, setBlowProgress] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [smoke, setSmoke] = useState(false);
-
-  const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef(0);
-  const blowStreak = useRef(0);
+  const [mic, setMic] = useState<"off" | "on" | "denied">("off");
+  const streak = useRef(0);
   const doneRef = useRef(false);
-  const outCountRef = useRef(0);
+  const raf = useRef(0);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 200);
-    return () => clearTimeout(t);
-  }, []);
-
-  const applyBlowLevel = useCallback((streak: number) => {
+  const apply = useCallback((s: number) => {
     if (doneRef.current) return;
-    const targetOut = Math.min(CANDLE_COUNT, Math.floor((streak / FULL_BLOW_FRAMES) * CANDLE_COUNT));
-    setExtinguished((prev) => prev.map((_, i) => i < targetOut));
-    outCountRef.current = targetOut;
-    if (targetOut >= CANDLE_COUNT) {
+    const n = Math.min(CANDLES, Math.floor((s / FULL) * CANDLES));
+    setExt(Array.from({ length: CANDLES }, (_, i) => i < n));
+    if (n >= CANDLES) {
       doneRef.current = true;
       setDone(true);
       setLeaning(false);
       setSmoke(true);
       audio.playSfx("blow");
-      setTimeout(() => onBlownOut(), 1600);
+      setTimeout(() => onDone(), 1800);
     }
-  }, [onBlownOut]);
+  }, [onDone]);
 
-  const relightIfStopped = useCallback(() => {
+  const relight = useCallback(() => {
     if (doneRef.current) return;
-    blowStreak.current = 0;
-    setBlowProgress(0);
+    streak.current = 0;
+    setProgress(0);
     setLeaning(false);
-    setExtinguished(Array(CANDLE_COUNT).fill(false));
-    outCountRef.current = 0;
+    setExt(Array(CANDLES).fill(false));
   }, []);
 
   const startMic = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
       const ctx = new AudioContext();
       await ctx.resume();
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.35;
-      source.connect(analyser);
-      setMicState("on");
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      let quietFrames = 0;
-      const check = () => {
+      const src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser();
+      an.fftSize = 512;
+      an.smoothingTimeConstant = 0.35;
+      src.connect(an);
+      setMic("on");
+      const data = new Uint8Array(an.frequencyBinCount);
+      let quiet = 0;
+      const tick = () => {
         if (doneRef.current) return;
-        analyser.getByteFrequencyData(data);
-        let sum = 0, count = 0;
-        const start = Math.floor(data.length * 0.1);
-        const end = Math.floor(data.length * 0.5);
-        for (let i = start; i < end; i++) { sum += data[i]; count++; }
-        const avg = count ? sum / count : 0;
-        if (avg >= BLOW_THRESHOLD) {
-          quietFrames = 0;
-          blowStreak.current += 1;
-          setLeaning(true);
-          setBlowProgress(Math.min(1, blowStreak.current / FULL_BLOW_FRAMES));
-          applyBlowLevel(blowStreak.current);
-        } else {
-          quietFrames += 1;
-          if (quietFrames > 8 && blowStreak.current > 0 && !doneRef.current) {
-            if (outCountRef.current < CANDLE_COUNT) relightIfStopped();
-          } else if (quietFrames > 3) setLeaning(false);
+        an.getByteFrequencyData(data);
+        let sum = 0, c = 0;
+        for (let i = Math.floor(data.length * 0.1); i < Math.floor(data.length * 0.5); i++) {
+          sum += data[i]; c++;
         }
-        rafRef.current = requestAnimationFrame(check);
+        const avg = c ? sum / c : 0;
+        if (avg >= THRESHOLD) {
+          quiet = 0;
+          streak.current += 1;
+          setLeaning(true);
+          setProgress(Math.min(1, streak.current / FULL));
+          apply(streak.current);
+        } else {
+          quiet += 1;
+          if (quiet > 8 && streak.current > 0 && !doneRef.current) relight();
+          else if (quiet > 3) setLeaning(false);
+        }
+        raf.current = requestAnimationFrame(tick);
       };
-      rafRef.current = requestAnimationFrame(check);
+      raf.current = requestAnimationFrame(tick);
     } catch {
-      setMicState("denied");
+      setMic("denied");
     }
-  }, [applyBlowLevel, relightIfStopped]);
+  }, [apply, relight]);
 
-  useEffect(() => {
-    const t = setTimeout(() => startMic(), 700);
-    return () => {
-      clearTimeout(t);
-      cancelAnimationFrame(rafRef.current);
-      streamRef.current?.getTracks().forEach((tr) => tr.stop());
-    };
-  }, [startMic]);
+  useEffect(() => () => {
+    cancelAnimationFrame(raf.current);
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+  }, []);
 
-  const candlePositions = [28, 50, 72];
+  const blowTap = () => {
+    if (doneRef.current) return;
+    streak.current = Math.min(FULL, streak.current + 8);
+    setLeaning(true);
+    setProgress(Math.min(1, streak.current / FULL));
+    apply(streak.current);
+    setTimeout(() => { if (!doneRef.current) setLeaning(false); }, 400);
+  };
+
+  const xs = [28, 50, 72];
 
   return (
-    <div className={`fixed inset-0 z-20 flex flex-col items-center justify-center px-4 transition-opacity duration-700 ${visible ? "opacity-100" : "opacity-0"}`}>
-      <div className="text-center mb-6 space-y-1">
-        <p className="text-2xl sm:text-3xl font-medium" style={{ color: "#e07a9a", fontFamily: "Georgia, serif" }}>
-          Make a wish, Esha
-        </p>
-        <p className="text-sm text-[#9a7080]">Blow toward the mic — keep going</p>
-      </div>
+    <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
+      <div className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center" style={{ animation: "cardIn 0.5s ease-out both" }}>
+        <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-1">Birthday cake for you</p>
+        <h2 className="text-xl text-[#4a3038] mb-5" style={{ fontFamily: "Georgia, serif" }}>Make a wish, Esha ✨</h2>
 
-      <div className="relative" style={{ width: 280, height: 220 }}>
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-56 h-5 rounded-full opacity-25 blur-sm" style={{ background: "#e07a9a" }} />
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-1" style={{ width: 230, height: 18, borderRadius: "50%", background: "linear-gradient(180deg, #f5e8dc 0%, #e8d5c4 100%)", boxShadow: "0 4px 12px rgba(90,53,69,0.12)" }} />
-
-        <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 16, width: 200, height: 100, borderRadius: "16px 16px 12px 12px", background: "linear-gradient(180deg, #ffd6e4 0%, #f8b8cc 40%, #f0a0b8 100%)", boxShadow: "inset 0 8px 16px rgba(255,255,255,0.5), inset 0 -10px 20px rgba(200,80,110,0.15), 0 8px 24px rgba(224,122,154,0.25)" }}>
-          <div className="absolute left-0 right-0" style={{ top: -14, height: 28, borderRadius: "50% 50% 40% 40% / 60% 60% 40% 40%", background: "linear-gradient(180deg, #fff5f8 0%, #ffe4ec 50%, #ffd0e0 100%)", boxShadow: "inset 0 2px 6px rgba(255,255,255,0.8)" }} />
-          {[18, 42, 58, 78].map((left, i) => (
-            <div key={i} className="absolute" style={{ left: `${left}%`, top: -2, width: 14, height: 22 + (i % 2) * 6, borderRadius: "0 0 50% 50%", background: "linear-gradient(180deg, #ffe4ec 0%, #ffd0e0 100%)", transform: "translateX(-50%)" }} />
-          ))}
-          {[[15, 35, "#ff8fab"], [28, 55, "#ffd166"], [45, 28, "#a0e7e5"], [62, 48, "#ff8fab"], [78, 32, "#cdb4db"], [22, 70, "#ffd166"], [55, 72, "#a0e7e5"], [85, 60, "#ff8fab"]].map(([x, y, color], i) => (
-            <div key={i} className="absolute rounded-full" style={{ left: `${x}%`, top: `${y}%`, width: 6, height: 3, background: color as string, transform: `rotate(${i * 35}deg)`, opacity: 0.9 }} />
-          ))}
-        </div>
-
-        {candlePositions.map((xPct, i) => {
-          const isOut = extinguished[i];
-          return (
-            <div key={i} className="absolute flex flex-col items-center" style={{ left: `${xPct}%`, bottom: 118, transform: "translateX(-50%)", width: 20 }}>
-              {!isOut && (
-                <div className={leaning ? "flame-lean" : "flame-idle"} style={{ position: "relative", width: 18, height: 28, marginBottom: -4 }}>
-                  <div style={{ position: "absolute", left: "50%", bottom: 4, transform: "translateX(-50%)", width: 28, height: 28, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,180,60,0.45) 0%, transparent 70%)", animation: "glowPulse 0.9s ease-in-out infinite alternate" }} />
-                  <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)", width: 12, height: 22, borderRadius: "50% 50% 40% 40% / 55% 55% 45% 45%", background: "radial-gradient(ellipse at 50% 70%, #fffef5 0%, #ffe070 30%, #ff9020 65%, #ff5010 100%)", boxShadow: "0 0 12px rgba(255,140,40,0.75)", animation: "flicker 0.28s ease-in-out infinite alternate" }} />
+        {/* cake illustration */}
+        <div className="relative mx-auto" style={{ width: 220, height: 180 }}>
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-2 w-48 h-4 rounded-full opacity-20 blur-sm bg-[#c45c6a]" />
+          {/* plate */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 w-44 h-3 rounded-full" style={{ background: "linear-gradient(180deg,#f5e8dc,#e8d5c4)" }} />
+          {/* bottom tier */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-2 w-40 h-16 rounded-t-lg" style={{ background: "linear-gradient(180deg,#ffd6e0,#f0a0b4)", boxShadow: "inset 0 6px 12px rgba(255,255,255,0.5), 0 4px 12px rgba(196,92,106,0.2)" }}>
+            <div className="absolute -top-3 left-2 right-2 h-5 rounded-full" style={{ background: "linear-gradient(180deg,#fff5f8,#ffe0ec)" }} />
+          </div>
+          {/* top tier */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-[4.2rem] w-24 h-12 rounded-t-md" style={{ background: "linear-gradient(180deg,#ffe4ec,#f5b0c0)", boxShadow: "inset 0 4px 8px rgba(255,255,255,0.5)" }}>
+            <div className="absolute -top-2 left-1 right-1 h-4 rounded-full" style={{ background: "linear-gradient(180deg,#fff8fa,#ffe8f0)" }} />
+          </div>
+          {/* cherries */}
+          <span className="absolute text-sm" style={{ left: "42%", bottom: "7.8rem" }}>🍒</span>
+          <span className="absolute text-sm" style={{ left: "52%", bottom: "8.1rem" }}>🍒</span>
+          <span className="absolute text-sm" style={{ left: "35%", bottom: "3.8rem" }}>🍒</span>
+          <span className="absolute text-sm" style={{ left: "58%", bottom: "3.5rem" }}>🍒</span>
+          {/* candles */}
+          {xs.map((x, i) => (
+            <div key={i} className="absolute flex flex-col items-center" style={{ left: `${x}%`, bottom: "7.2rem", transform: "translateX(-50%)" }}>
+              {!extinguished[i] && (
+                <div className={leaning ? "origin-bottom" : ""} style={leaning ? { transform: "rotate(12deg) scaleY(0.75)", transition: "0.1s" } : {}}>
+                  <div className="w-3 h-5 rounded-full mx-auto" style={{ background: "radial-gradient(ellipse at 50% 70%,#fffef5,#ffe070 40%,#ff8020)", animation: "flicker 0.3s ease-in-out infinite alternate", boxShadow: "0 0 8px rgba(255,140,40,0.7)" }} />
                 </div>
               )}
-              {isOut && smoke && (
-                <div style={{ width: 10, height: 24, marginBottom: -2, position: "relative" }}>
-                  <div style={{ position: "absolute", left: "50%", bottom: 0, width: 8, height: 8, marginLeft: -4, borderRadius: "50%", background: "rgba(160,140,150,0.4)", animation: "smokeUp 1.3s ease-out forwards" }} />
-                </div>
+              {extinguished[i] && smoke && (
+                <div className="w-2 h-2 rounded-full bg-[rgba(160,140,150,0.4)] mx-auto" style={{ animation: "smokeUp 1.2s ease-out forwards" }} />
               )}
-              <div style={{ width: 10, height: 36, borderRadius: 3, background: i === 1 ? "linear-gradient(90deg, #f0c090, #fff5e8 45%, #e8c0a0)" : "linear-gradient(90deg, #f0a0b8, #ffe0ec 45%, #e890a8)", boxShadow: "2px 0 3px rgba(90,53,69,0.12), inset 1px 0 0 rgba(255,255,255,0.6)" }}>
-                <div style={{ width: 2, height: 5, margin: "0 auto", background: "#4a3040", borderRadius: 1 }} />
-              </div>
+              <div className="w-2.5 h-7 rounded-sm mt-0.5" style={{ background: i === 1 ? "linear-gradient(90deg,#f0c090,#fff5e8,#e8c0a0)" : "linear-gradient(90deg,#f0a0b8,#ffe0ec,#e890a8)" }} />
             </div>
-          );
-        })}
-      </div>
-
-      {!done && (
-        <div className="mt-8 text-center space-y-3 max-w-xs">
-          {micState === "loading" && <p className="text-sm text-[#9a7080] animate-pulse">Preparing microphone…</p>}
-          {micState === "on" && (
-            <>
-              <div className="w-44 h-2 mx-auto rounded-full bg-[#ffe4ec] overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-[#f0a8bc] to-[#e07a9a]" style={{ width: `${blowProgress * 100}%`, transition: "width 70ms linear" }} />
-              </div>
-              <p className="text-sm text-[#5a3545]">{blowProgress > 0.05 ? (blowProgress < 1 ? "Keep blowing…" : "Yes!") : "Blow toward the mic"}</p>
-              <p className="text-xs text-[#9a7080]">Stop early and the candles light again</p>
-            </>
-          )}
-          {micState === "denied" && (
-            <button onClick={startMic} className="px-5 py-2 rounded-full border border-[#f0a8bc] text-[#e07a9a] text-sm bg-white/80">Enable microphone</button>
-          )}
+          ))}
         </div>
-      )}
 
-      {done && <p className="mt-6 text-sm text-[#e07a9a]" style={{ animation: "fadeUp 0.6s ease-out" }}>Wish granted ✨</p>}
+        {!done && (
+          <div className="mt-5 space-y-3">
+            <div className="w-36 h-1.5 mx-auto rounded-full bg-[#ffe4ec] overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#f0a8bc] to-[#c45c6a]" style={{ width: `${progress * 100}%`, transition: "width 80ms linear" }} />
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={blowTap}
+                className="px-6 py-2 rounded-full text-sm border border-[#c45c6a] text-[#c45c6a] bg-white active:scale-95"
+              >
+                🌬️ Blow (tap)
+              </button>
+              {mic === "off" && (
+                <button onClick={startMic} className="text-xs text-[#8a6870] underline">
+                  or use microphone
+                </button>
+              )}
+              {mic === "on" && <p className="text-xs text-[#c45c6a]">Mic on — keep blowing…</p>}
+              {mic === "denied" && <p className="text-xs text-[#8a6870]">Mic blocked — use the button</p>}
+            </div>
+          </div>
+        )}
 
-      <style jsx>{`
-        .flame-idle { animation: none; }
-        .flame-lean { animation: windLean 0.15s ease-in-out infinite alternate; transform-origin: 50% 100%; }
-        @keyframes flicker {
-          0% { transform: translateX(-50%) scaleY(1) rotate(-2deg); }
-          100% { transform: translateX(-50%) scaleY(1.1) scaleX(0.92) rotate(3deg); }
-        }
-        @keyframes glowPulse {
-          0% { opacity: 0.4; transform: scale(1); }
-          100% { opacity: 0.75; transform: scale(1.15); }
-        }
-        @keyframes windLean {
-          0% { transform: rotate(8deg) scaleY(0.9); }
-          100% { transform: rotate(18deg) scaleY(0.7); opacity: 0.65; }
-        }
-        @keyframes smokeUp {
-          0% { opacity: 0.5; transform: translateY(0) scale(0.5); }
-          100% { opacity: 0; transform: translateY(-26px) scale(2); }
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+        {done && <p className="mt-5 text-sm text-[#c45c6a]" style={{ animation: "cardIn 0.5s ease-out" }}>Wish granted ✨</p>}
+      </div>
     </div>
   );
 }
