@@ -51,25 +51,58 @@ export default function Home() {
     }
   };
 
+  const goBack = () => {
+    if (scene === "day") go("cover");
+    else if (scene === "letter") go("day");
+    else if (scene === "gifts") go("letter");
+    else if (scene === "cake" || scene === "flowers" || scene === "photos") {
+      if (giftIdx > 0) {
+        const prev = giftIdx - 1;
+        setGiftIdx(prev);
+        go(giftOrder[prev]);
+      } else {
+        go("gifts");
+      }
+    } else if (scene === "cards") {
+      if (giftOrder.length) {
+        setGiftIdx(giftOrder.length - 1);
+        go(giftOrder[giftOrder.length - 1]);
+      } else go("gifts");
+    } else if (scene === "final") {
+      setFinalOn(false);
+      go("cards");
+    }
+  };
+
+  const restart = () => {
+    setFinalOn(false);
+    setGiftOrder([]);
+    setGiftIdx(0);
+    go("cover");
+  };
+
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden">
       {scene === "intro" && <VolumePrompt onEnter={() => go("cover")} />}
       {scene === "cover" && <ScrapbookCover onNext={() => go("day")} />}
-      {scene === "day" && <SpecialDay onNext={() => go("letter")} />}
-      {scene === "letter" && <LoveLetter onNext={() => go("gifts")} />}
-      {scene === "gifts" && <GiftPicker onPick={onPickGift} />}
-      {scene === "cake" && <BirthdayCake onDone={nextGift} />}
-      {scene === "flowers" && <FlowerCard onNext={nextGift} />}
-      {scene === "photos" && <PhotoCollage onNext={nextGift} />}
+      {scene === "day" && <SpecialDay onNext={() => go("letter")} onBack={goBack} />}
+      {scene === "letter" && <LoveLetter onNext={() => go("gifts")} onBack={goBack} />}
+      {scene === "gifts" && <GiftPicker onPick={onPickGift} onBack={goBack} />}
+      {scene === "cake" && <BirthdayCake onDone={nextGift} onBack={goBack} />}
+      {scene === "flowers" && <FlowerCard onNext={nextGift} onBack={goBack} />}
+      {scene === "photos" && <PhotoCollage onNext={nextGift} onBack={goBack} />}
       {scene === "cards" && (
         <FlipCards
           onNext={() => {
             setFinalOn(true);
             go("final");
           }}
+          onBack={goBack}
         />
       )}
-      {scene === "final" && <FinalCard active={finalOn} />}
+      {scene === "final" && (
+        <FinalCard active={finalOn} onRestart={restart} onBack={goBack} />
+      )}
 
       {scene !== "intro" && <SoundController />}
     </main>
