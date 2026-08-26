@@ -8,13 +8,16 @@ import Fireworks from "./Fireworks";
 
 interface Props {
   active: boolean;
+  onRestart?: () => void;
+  onBack?: () => void;
 }
 
-export default function FinalCard({ active }: Props) {
+export default function FinalCard({ active, onRestart, onBack }: Props) {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     if (!active) return;
+    setPhase(0);
     audio.fadeMusic(0.35, 2);
     const timers = [
       setTimeout(() => setPhase(1), 300),
@@ -29,6 +32,15 @@ export default function FinalCard({ active }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center plaid-bg px-5">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-50 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
       {phase >= 3 && <Fireworks active intensity={0.9} />}
 
       <div
@@ -66,7 +78,7 @@ export default function FinalCard({ active }: Props) {
               className="text-sm text-[#4a3038] leading-relaxed max-w-xs mx-auto"
               style={{ fontFamily: "Georgia, serif", animation: "cardIn 0.6s ease-out both" }}
             >
-              Thank you for being you \u2014 for the quiet kindness, the soft light you bring.
+              Thank you for being you — for the quiet kindness, the soft light you bring.
               <br /><br />
               May this year hold soft mornings, brave little steps, and more reasons to smile than you can count.
               <br /><br />
@@ -86,6 +98,16 @@ export default function FinalCard({ active }: Props) {
           )}
         </div>
       </div>
+
+      {phase >= 4 && onRestart && (
+        <button
+          onClick={onRestart}
+          className="mt-6 px-6 py-2.5 rounded-full text-sm border border-[#c45c6a] text-[#c45c6a] bg-white/90 active:scale-95 transition-transform"
+          style={{ animation: "cardIn 0.5s ease-out both" }}
+        >
+          ↻ Experience again
+        </button>
+      )}
     </div>
   );
 }
