@@ -1,7 +1,4 @@
-/**
- * Happy Birthday instrumental only — no spoken voice.
- * Bright, clear melody with proper rhythm.
- */
+/** Calm Happy Birthday instrumental — slower tempo, no voice */
 
 type SoundType = "blow" | "gift" | "envelope" | "firework" | "click" | "whoosh";
 
@@ -32,10 +29,10 @@ class AudioManager {
       this.masterGain.gain.value = 1;
       this.masterGain.connect(this.ctx.destination);
       this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0.85;
+      this.musicGain.gain.value = 0.8;
       this.musicGain.connect(this.masterGain);
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.95;
+      this.sfxGain.gain.value = 0.9;
       this.sfxGain.connect(this.masterGain);
     } catch (e) {
       console.warn("AudioContext not available", e);
@@ -84,10 +81,11 @@ class AudioManager {
     this.playHappyBirthdayTune();
   }
 
+  /** Slower, calmer Happy Birthday (~72 BPM feel) */
   private playHappyBirthdayTune() {
     if (!this.ctx || !this.musicGain) return;
 
-    const B = 0.36;
+    const B = 0.52; // slower beat unit
     const C4 = 261.63,
       D4 = 293.66,
       E4 = 329.63,
@@ -103,31 +101,31 @@ class AudioManager {
       [D4, 1],
       [C4, 1],
       [F4, 1],
-      [E4, 2],
+      [E4, 2.2],
       [C4, 0.75],
       [C4, 0.25],
       [D4, 1],
       [C4, 1],
       [G4, 1],
-      [F4, 2],
+      [F4, 2.2],
       [C4, 0.75],
       [C4, 0.25],
       [C5, 1],
       [A4, 1],
       [F4, 1],
       [E4, 1],
-      [D4, 2],
+      [D4, 2.2],
       [Bb4, 0.75],
       [Bb4, 0.25],
       [A4, 1],
       [F4, 1],
       [G4, 1],
-      [F4, 2.2],
+      [F4, 2.5],
     ];
 
     const playPhrase = () => {
       if (!this.musicPlaying || !this.ctx || !this.musicGain) return;
-      let t = this.ctx.currentTime + 0.05;
+      let t = this.ctx.currentTime + 0.08;
 
       notes.forEach(([freq, beats]) => {
         const dur = beats * B;
@@ -136,30 +134,31 @@ class AudioManager {
         osc.type = "sine";
         osc.frequency.value = freq;
         g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.3, t + 0.02);
-        g.gain.linearRampToValueAtTime(0.2, t + dur * 0.4);
+        g.gain.linearRampToValueAtTime(0.26, t + 0.04);
+        g.gain.linearRampToValueAtTime(0.16, t + dur * 0.5);
         g.gain.exponentialRampToValueAtTime(0.001, t + dur);
         osc.connect(g);
         g.connect(this.musicGain!);
         osc.start(t);
-        osc.stop(t + dur + 0.02);
+        osc.stop(t + dur + 0.03);
 
         const h = this.ctx!.createOscillator();
         const hg = this.ctx!.createGain();
         h.type = "triangle";
         h.frequency.value = freq * 2;
         hg.gain.setValueAtTime(0, t);
-        hg.gain.linearRampToValueAtTime(0.05, t + 0.03);
+        hg.gain.linearRampToValueAtTime(0.04, t + 0.05);
         hg.gain.exponentialRampToValueAtTime(0.001, t + dur);
         h.connect(hg);
         hg.connect(this.musicGain!);
         h.start(t);
-        h.stop(t + dur + 0.02);
+        h.stop(t + dur + 0.03);
 
         t += dur;
       });
 
-      const wait = Math.max(300, (t - this.ctx.currentTime) * 1000 + 500);
+      // soft pause between loops
+      const wait = Math.max(400, (t - this.ctx.currentTime) * 1000 + 900);
       this.synthTimer = setTimeout(playPhrase, wait);
     };
 
@@ -191,18 +190,18 @@ class AudioManager {
     const now = this.ctx.currentTime;
 
     if (type === "blow") {
-      const n = this.ctx.sampleRate * 0.7;
+      const n = this.ctx.sampleRate * 0.75;
       const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
       const d = buf.getChannelData(0);
-      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.3));
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (n * 0.28));
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
       const f = this.ctx.createBiquadFilter();
       f.type = "lowpass";
-      f.frequency.value = 900;
+      f.frequency.value = 850;
       const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.6, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+      g.gain.setValueAtTime(0.55, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
       src.connect(f);
       f.connect(g);
       g.connect(this.sfxGain);
@@ -213,21 +212,21 @@ class AudioManager {
         const g = this.ctx!.createGain();
         o.type = "sine";
         o.frequency.value = freq;
-        g.gain.setValueAtTime(0, now + i * 0.08);
-        g.gain.linearRampToValueAtTime(0.28, now + i * 0.08 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.45);
+        g.gain.setValueAtTime(0, now + i * 0.09);
+        g.gain.linearRampToValueAtTime(0.25, now + i * 0.09 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.5);
         o.connect(g);
         g.connect(this.sfxGain!);
-        o.start(now + i * 0.08);
-        o.stop(now + i * 0.08 + 0.5);
+        o.start(now + i * 0.09);
+        o.stop(now + i * 0.09 + 0.55);
       });
     } else if (type === "envelope") {
       const o = this.ctx.createOscillator();
       const g = this.ctx.createGain();
       o.type = "triangle";
-      o.frequency.setValueAtTime(420, now);
-      o.frequency.linearRampToValueAtTime(640, now + 0.14);
-      g.gain.setValueAtTime(0.22, now);
+      o.frequency.setValueAtTime(400, now);
+      o.frequency.linearRampToValueAtTime(600, now + 0.15);
+      g.gain.setValueAtTime(0.2, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
       o.connect(g);
       g.connect(this.sfxGain);
@@ -244,7 +243,7 @@ class AudioManager {
       f.type = "highpass";
       f.frequency.value = 1000;
       const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.4, now);
+      g.gain.setValueAtTime(0.38, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
       src.connect(f);
       f.connect(g);
@@ -253,7 +252,7 @@ class AudioManager {
     } else if (type === "click") {
       const o = this.ctx.createOscillator();
       const g = this.ctx.createGain();
-      o.frequency.value = 900;
+      o.frequency.value = 880;
       g.gain.setValueAtTime(0.12, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
       o.connect(g);
@@ -269,7 +268,7 @@ class AudioManager {
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
       const g = this.ctx.createGain();
-      g.gain.value = 0.32;
+      g.gain.value = 0.3;
       src.connect(g);
       g.connect(this.sfxGain);
       src.start(now);

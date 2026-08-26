@@ -44,7 +44,7 @@ export default function VolumePrompt({ onEnter }: Props) {
               A surprise for Esha
             </h1>
             <p className="text-lg text-[#5a3545]">Turn the volume up</p>
-            <p className="text-sm text-[#8b6b78] italic">A little birthday tune awaits</p>
+            <p className="text-sm text-[#8b6b78] italic">Something awaits…</p>
             <div className="flex items-center justify-center gap-1 h-9">
               {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                 <div
@@ -73,9 +73,7 @@ export default function VolumePrompt({ onEnter }: Props) {
           </div>
         )}
 
-        {phase === "go" && (
-          <div className="text-4xl go-in">✨</div>
-        )}
+        {phase === "go" && <div className="text-4xl go-in">✨</div>}
       </div>
 
       <style jsx>{`
