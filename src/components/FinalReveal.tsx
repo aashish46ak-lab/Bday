@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SITE_CONFIG } from "@/lib/config";
+import { ESHA_PHOTO } from "@/lib/eshaPhoto";
 import { audio } from "@/lib/audio";
 import Fireworks from "./Fireworks";
 
@@ -55,18 +56,14 @@ export default function FinalReveal({ active }: Props) {
           style={{ animation: "fadeScale 1s ease-out both" }}
         >
           <div
-            className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg mx-auto"
+            className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white mx-auto"
             style={{ boxShadow: "0 8px 32px rgba(224,122,154,0.3)" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/esha.jpg"
+              src={ESHA_PHOTO}
               alt="Esha"
               className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).parentElement!.style.background =
-                  "linear-gradient(135deg, #ffe4ec, #f0a8bc)";
-              }}
             />
           </div>
         </div>
