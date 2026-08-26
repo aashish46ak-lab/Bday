@@ -2,24 +2,43 @@
 
 interface Props {
   onNext: () => void;
+  onBack?: () => void;
 }
 
-export default function SpecialDay({ onNext }: Props) {
+export default function SpecialDay({ onNext, onBack }: Props) {
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
-      <div className="paper-card w-full max-w-[340px] rounded-2xl overflow-hidden" style={{ animation: "cardIn 0.6s ease-out both" }}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
+      <div
+        className="paper-card w-full max-w-[340px] rounded-2xl overflow-hidden"
+        style={{ animation: "cardIn 0.6s ease-out both" }}
+      >
         <div className="flex">
           <div className="w-[42%] bg-[#c45c6a] text-white p-5 flex flex-col items-center justify-center">
             <p className="text-[10px] tracking-widest uppercase opacity-80">Ashoj</p>
-            <p className="text-5xl font-light my-1" style={{ fontFamily: "Georgia, serif" }}>15</p>
+            <p className="text-5xl font-light my-1" style={{ fontFamily: "Georgia, serif" }}>
+              15
+            </p>
             <p className="text-xs opacity-80">2064 B.S.</p>
             <div className="mt-4 w-full border-t border-white/20 pt-3">
-              <p className="text-[10px] text-center leading-relaxed opacity-90">This is your special day</p>
+              <p className="text-[10px] text-center leading-relaxed opacity-90">
+                This is your special day
+              </p>
             </div>
           </div>
           <div className="flex-1 p-5 flex flex-col items-center justify-center text-center bg-[#fff5f2]">
             <span className="text-2xl mb-2">🎀</span>
-            <p className="text-sm text-[#c45c6a]" style={{ fontFamily: "Georgia, serif" }}>For Esha</p>
+            <p className="text-sm text-[#c45c6a]" style={{ fontFamily: "Georgia, serif" }}>
+              For Esha
+            </p>
             <p className="text-xs text-[#8a6870] mt-2 leading-relaxed">
               Born in Dang.
               <br />

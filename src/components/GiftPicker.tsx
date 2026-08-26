@@ -5,6 +5,7 @@ import { audio } from "@/lib/audio";
 
 interface Props {
   onPick: (gift: "cake" | "flowers" | "photos") => void;
+  onBack?: () => void;
 }
 
 const GIFTS = [
@@ -13,7 +14,7 @@ const GIFTS = [
   { id: "photos" as const, emoji: "📷", label: "Photos", hint: "Memories" },
 ];
 
-export default function GiftPicker({ onPick }: Props) {
+export default function GiftPicker({ onPick, onBack }: Props) {
   const [picked, setPicked] = useState<string | null>(null);
 
   const choose = (id: "cake" | "flowers" | "photos") => {
@@ -25,7 +26,19 @@ export default function GiftPicker({ onPick }: Props) {
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col items-center justify-center plaid-bg px-5">
-      <div className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center" style={{ animation: "cardIn 0.6s ease-out both" }}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-5 left-4 z-30 text-xs text-[#8a6870] px-3 py-1.5 rounded-full bg-white/70 border border-[#e8a0b0]/40 active:scale-95"
+        >
+          ← Back
+        </button>
+      )}
+
+      <div
+        className="paper-card w-full max-w-[340px] rounded-2xl p-6 text-center"
+        style={{ animation: "cardIn 0.6s ease-out both" }}
+      >
         <p className="text-xs tracking-[0.2em] uppercase text-[#c45c6a] mb-1">A surprise</p>
         <h2 className="text-xl text-[#4a3038] mb-6" style={{ fontFamily: "Georgia, serif" }}>
           Do you want a birthday gift?
