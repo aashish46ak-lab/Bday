@@ -1,95 +1,77 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Starfield from "@/components/Starfield";
 import VolumePrompt from "@/components/VolumePrompt";
-import BirthdayHero from "@/components/BirthdayHero";
+import ScrapbookCover from "@/components/ScrapbookCover";
+import SpecialDay from "@/components/SpecialDay";
+import LoveLetter from "@/components/LoveLetter";
+import GiftPicker from "@/components/GiftPicker";
 import BirthdayCake from "@/components/BirthdayCake";
-import Fireworks from "@/components/Fireworks";
-import GiftBox from "@/components/GiftBox";
+import FlowerCard from "@/components/FlowerCard";
+import PhotoCollage from "@/components/PhotoCollage";
 import FlipCards from "@/components/FlipCards";
-import MemoryBook from "@/components/MemoryBook";
-import FinalReveal from "@/components/FinalReveal";
+import FinalCard from "@/components/FinalCard";
 import SoundController from "@/components/SoundController";
 
 type Scene =
   | "intro"
-  | "hero"
+  | "cover"
+  | "day"
+  | "letter"
+  | "gifts"
   | "cake"
-  | "fireworks"
-  | "gift"
+  | "flowers"
+  | "photos"
   | "cards"
-  | "book"
   | "final";
 
 export default function Home() {
   const [scene, setScene] = useState<Scene>("intro");
-  const [showFireworks, setShowFireworks] = useState(false);
-  const [finalActive, setFinalActive] = useState(false);
+  const [finalOn, setFinalOn] = useState(false);
+  const [giftOrder, setGiftOrder] = useState<("cake" | "flowers" | "photos")[]>([]);
+  const [giftIdx, setGiftIdx] = useState(0);
 
   const go = useCallback((s: Scene) => setScene(s), []);
 
-  const handleBlownOut = () => {
-    setShowFireworks(true);
-    setTimeout(() => go("fireworks"), 200);
-    setTimeout(() => {
-      setShowFireworks(false);
-      go("gift");
-    }, 4500);
+  const onPickGift = (g: "cake" | "flowers" | "photos") => {
+    const rest = (["cake", "flowers", "photos"] as const).filter((x) => x !== g);
+    const order = [g, ...rest];
+    setGiftOrder(order);
+    setGiftIdx(0);
+    go(order[0]);
+  };
+
+  const nextGift = () => {
+    const next = giftIdx + 1;
+    if (next < giftOrder.length) {
+      setGiftIdx(next);
+      go(giftOrder[next]);
+    } else {
+      go("cards");
+    }
   };
 
   return (
-    <main className="relative min-h-[100dvh] w-full overflow-hidden text-[#5a3545]">
-      <Starfield density={scene === "intro" ? 0.25 : 0.35} />
-
-      {scene === "intro" && <VolumePrompt onEnter={() => go("hero")} />}
-      {scene === "hero" && <BirthdayHero onComplete={() => go("cake")} />}
-      {scene === "cake" && <BirthdayCake onBlownOut={handleBlownOut} />}
-
-      {(scene === "fireworks" || showFireworks) && (
-        <>
-          <Fireworks active intensity={1.0} />
-          <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none">
-            <h2
-              className="text-3xl sm:text-4xl font-medium text-center px-4"
-              style={{
-                color: "#e07a9a",
-                fontFamily: "Georgia, serif",
-                animation: "popIn 1.1s ease-out forwards",
-                textShadow: "0 2px 24px rgba(224,122,154,0.35)",
-              }}
-            >
-              Happy Birthday, Esha! 🎂
-            </h2>
-          </div>
-        </>
-      )}
-
-      {scene === "gift" && <GiftBox onOpen={() => go("cards")} />}
-      {scene === "cards" && <FlipCards onAllFlipped={() => go("book")} />}
-      {scene === "book" && (
-        <MemoryBook
-          onDone={() => {
-            setFinalActive(true);
+    <main className="relative min-h-[100dvh] w-full overflow-hidden">
+      {scene === "intro" && <VolumePrompt onEnter={() => go("cover")} />}
+      {scene === "cover" && <ScrapbookCover onNext={() => go("day")} />}
+      {scene === "day" && <SpecialDay onNext={() => go("letter")} />}
+      {scene === "letter" && <LoveLetter onNext={() => go("gifts")} />}
+      {scene === "gifts" && <GiftPicker onPick={onPickGift} />}
+      {scene === "cake" && <BirthdayCake onDone={nextGift} />}
+      {scene === "flowers" && <FlowerCard onNext={nextGift} />}
+      {scene === "photos" && <PhotoCollage onNext={nextGift} />}
+      {scene === "cards" && (
+        <FlipCards
+          onNext={() => {
+            setFinalOn(true);
             go("final");
           }}
         />
       )}
-      {scene === "final" && <FinalReveal active={finalActive} />}
+      {scene === "final" && <FinalCard active={finalOn} />}
 
       {scene !== "intro" && <SoundController />}
-
-      <style jsx global>{`
-        @keyframes popIn {
-          0% { opacity: 0; transform: scale(0.88); }
-          60% { opacity: 1; transform: scale(1.04); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        html, body {
-          overscroll-behavior: none;
-          touch-action: manipulation;
-        }
-      `}</style>
     </main>
   );
 }
