@@ -29,16 +29,16 @@ export default function Home() {
 
   const handleBlownOut = () => {
     setShowFireworks(true);
-    setTimeout(() => go("fireworks"), 300);
+    setTimeout(() => go("fireworks"), 200);
     setTimeout(() => {
       setShowFireworks(false);
       go("gift");
-    }, 5500);
+    }, 4800);
   };
 
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden text-[#5a3545]">
-      <Starfield density={scene === "intro" ? 0.4 : 0.7} />
+      <Starfield density={scene === "intro" ? 0.25 : 0.4} />
 
       {scene === "intro" && <VolumePrompt onEnter={() => go("hero")} />}
       {scene === "hero" && <BirthdayHero onComplete={() => go("cake")} />}
@@ -46,13 +46,15 @@ export default function Home() {
 
       {(scene === "fireworks" || showFireworks) && (
         <>
-          <Fireworks active intensity={1.15} />
+          <Fireworks active intensity={1.05} />
           <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none">
             <h2
-              className="text-3xl sm:text-5xl font-light text-[#c45c7a] text-center px-4"
+              className="text-3xl sm:text-4xl font-medium text-center px-4"
               style={{
-                animation: "popIn 1.2s ease-out forwards",
-                textShadow: "0 0 30px rgba(232,160,180,0.5)",
+                color: "#e07a9a",
+                fontFamily: "Georgia, serif",
+                animation: "popIn 1.1s ease-out forwards",
+                textShadow: "0 2px 24px rgba(224,122,154,0.35)",
               }}
             >
               Happy Birthday, Esha! 🎂
@@ -78,8 +80,8 @@ export default function Home() {
 
       <style jsx global>{`
         @keyframes popIn {
-          0% { opacity: 0; transform: scale(0.85); }
-          60% { opacity: 1; transform: scale(1.05); }
+          0% { opacity: 0; transform: scale(0.88); }
+          60% { opacity: 1; transform: scale(1.04); }
           100% { opacity: 1; transform: scale(1); }
         }
         html, body {
