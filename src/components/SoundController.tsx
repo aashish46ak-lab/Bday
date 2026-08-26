@@ -11,18 +11,16 @@ export default function SoundController() {
     setVisible(true);
   }, []);
 
-  const toggle = () => {
-    const next = !muted;
-    setMuted(next);
-    audio.setMuted(next);
-  };
-
   if (!visible) return null;
 
   return (
     <button
-      onClick={toggle}
-      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full border border-[#e8c87a]/30 bg-[#050509]/70 backdrop-blur-sm flex items-center justify-center text-[#f5e6c8] hover:border-[#e8c87a]/60 transition-all"
+      onClick={() => {
+        const next = !muted;
+        setMuted(next);
+        audio.setMuted(next);
+      }}
+      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full border border-[#e8a0b4]/50 bg-white/80 backdrop-blur-sm flex items-center justify-center text-[#c45c7a] hover:border-[#c45c7a] transition-all shadow-sm"
       aria-label={muted ? "Unmute" : "Mute"}
     >
       {muted ? (
