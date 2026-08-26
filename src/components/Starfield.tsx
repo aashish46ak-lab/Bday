@@ -2,23 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
-interface Star {
-  x: number;
-  y: number;
-  size: number;
-  twinkle: number;
-  speed: number;
-  color: string;
-}
-
-interface StarfieldProps {
+interface Props {
   density?: number;
-  className?: string;
 }
 
-export default function Starfield({ density = 1, className = "" }: StarfieldProps) {
+export default function Starfield({ density = 0.5 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -26,62 +15,52 @@ export default function Starfield({ density = 1, className = "" }: StarfieldProp
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const colors = [
-      "rgba(232,160,180,",
-      "rgba(196,92,122,",
-      "rgba(255,200,210,",
-      "rgba(212,165,116,",
-    ];
-
-    let stars: Star[] = [];
+    let raf = 0;
+    let w = 0;
+    let h = 0;
+    const particles: { x: number; y: number; r: number; a: number; s: number }[] = [];
 
     const resize = () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const count = Math.min(
-        120,
-        Math.floor((window.innerWidth * window.innerHeight) / 9000 * density)
-      );
-      stars = Array.from({ length: count }, () => ({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        size: 0.8 + Math.random() * 1.8,
-        twinkle: Math.random() * Math.PI * 2,
-        speed: 0.015 + Math.random() * 0.025,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      }));
+      particles.length = 0;
+      const count = Math.floor((w * h) / 18000 * density);
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: 0.6 + Math.random() * 1.4,
+          a: 0.15 + Math.random() * 0.35,
+          s: 0.15 + Math.random() * 0.35,
+        });
+      }
     };
 
-    let last = performance.now();
-    const draw = (t: number) => {
-      const dt = Math.min((t - last) / 16, 3);
-      last = t;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+    const draw = () => {
       ctx.clearRect(0, 0, w, h);
-
-      stars.forEach((s) => {
-        s.twinkle += s.speed * dt;
-        const a = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(s.twinkle));
+      for (const p of particles) {
+        p.y -= p.s * 0.15;
+        if (p.y < -4) p.y = h + 4;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fillStyle = `${s.color}${a})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(224, 122, 154, ${p.a})`;
         ctx.fill();
-      });
-
-      animRef.current = requestAnimationFrame(draw);
+      }
+      raf = requestAnimationFrame(draw);
     };
 
     resize();
+    draw();
     window.addEventListener("resize", resize);
-    animRef.current = requestAnimationFrame(draw);
     return () => {
-      cancelAnimationFrame(animRef.current);
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
   }, [density]);
@@ -89,7 +68,7 @@ export default function Starfield({ density = 1, className = "" }: StarfieldProp
   return (
     <canvas
       ref={canvasRef}
-      className={`pointer-events-none fixed inset-0 z-0 ${className}`}
+      className="fixed inset-0 pointer-events-none z-0"
       aria-hidden
     />
   );

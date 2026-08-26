@@ -1,93 +1,91 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SITE_CONFIG } from "@/lib/config";
 
 interface Props {
   onComplete: () => void;
 }
 
 export default function BirthdayHero({ onComplete }: Props) {
-  const [phase, setPhase] = useState(0);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setPhase(1), 350),
-      setTimeout(() => setPhase(2), 1600),
-      setTimeout(() => setPhase(3), 3200),
-      setTimeout(() => setPhase(4), 4800),
-      setTimeout(() => setPhase(5), 6400),
-      setTimeout(() => onComplete(), 8200),
-    ];
-    return () => timers.forEach(clearTimeout);
+    const t1 = setTimeout(() => setStep(1), 400);
+    const t2 = setTimeout(() => setStep(2), 1800);
+    const t3 = setTimeout(() => setStep(3), 3400);
+    const t4 = setTimeout(() => onComplete(), 4800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
-      <div
-        className={`absolute w-64 h-64 rounded-full blur-3xl transition-opacity duration-1000 ${
-          phase >= 1 ? "opacity-70" : "opacity-0"
-        }`}
-        style={{
-          background:
-            "radial-gradient(circle, rgba(232,160,180,0.45) 0%, transparent 70%)",
-        }}
-      />
+    <div className="fixed inset-0 z-20 flex flex-col items-center justify-center px-6 text-center">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {[...Array(8)].map((_, i) => (
+          <span
+            key={i}
+            className="absolute text-[#f0a8bc]/40 select-none"
+            style={{
+              left: `${8 + i * 11}%`,
+              top: `${12 + (i % 4) * 20}%`,
+              fontSize: `${14 + (i % 4) * 8}px`,
+              animation: `drift ${5 + i * 0.5}s ease-in-out infinite`,
+              animationDelay: `${i * 0.2}s`,
+            }}
+          >
+            ♥
+          </span>
+        ))}
+      </div>
 
-      <div
-        className={`relative transition-all duration-1000 ${
-          phase >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-        }`}
-      >
-        <p className="text-xs tracking-[0.4em] uppercase text-[#e8a0b4] mb-5">
-          Tonight is for you
+      {step >= 1 && (
+        <p
+          className="text-sm tracking-[0.2em] uppercase text-[#f0a8bc] mb-4"
+          style={{ animation: "fadeUp 0.8s ease-out both" }}
+        >
+          Made just for you
         </p>
-      </div>
+      )}
 
-      <div
-        className={`relative transition-all duration-[1100ms] ${
-          phase >= 2 ? "opacity-100 scale-100" : "opacity-0 scale-95"
-        }`}
-      >
-        <h1 className="text-4xl sm:text-6xl font-light tracking-wide text-[#5a3545]">
+      {step >= 2 && (
+        <h1
+          className="text-4xl sm:text-5xl md:text-6xl font-medium leading-tight"
+          style={{
+            color: "#e07a9a",
+            fontFamily: "Georgia, serif",
+            animation: "fadeUp 1s ease-out both",
+            textShadow: "0 2px 20px rgba(224,122,154,0.2)",
+          }}
+        >
           Happy Birthday
+          <br />
+          <span className="text-[#5a3545]">Esha</span>
         </h1>
-      </div>
+      )}
 
-      <div
-        className={`relative mt-4 transition-all duration-[1200ms] ${
-          phase >= 3 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"
-        }`}
-      >
-        <h2 className="text-4xl sm:text-6xl font-medium text-[#c45c7a]">
-          {SITE_CONFIG.person.name}
-        </h2>
-      </div>
+      {step >= 3 && (
+        <p
+          className="mt-6 text-base text-[#9a7080] max-w-xs"
+          style={{ animation: "fadeUp 0.9s ease-out both" }}
+        >
+          A little surprise is waiting…
+        </p>
+      )}
 
-      <div
-        className={`mt-7 h-px transition-all duration-1000 ${
-          phase >= 4 ? "w-20 opacity-60" : "w-0 opacity-0"
-        }`}
-        style={{
-          background: "linear-gradient(90deg, transparent, #e8a0b4, transparent)",
-        }}
-      />
-
-      <div
-        className={`mt-5 transition-all duration-1000 ${
-          phase >= 4 ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <p className="text-base text-[#8b6b78] italic">Something sweet is waiting…</p>
-      </div>
-
-      <div
-        className={`mt-8 transition-all duration-700 ${
-          phase >= 5 ? "opacity-50" : "opacity-0"
-        }`}
-      >
-        <p className="text-xs tracking-[0.25em] uppercase text-[#c45c7a]">Make a wish</p>
-      </div>
+      <style jsx>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes drift {
+          0%, 100% { transform: translateY(0); opacity: 0.35; }
+          50% { transform: translateY(-10px); opacity: 0.7; }
+        }
+      `}</style>
     </div>
   );
 }
