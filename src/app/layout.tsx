@@ -16,7 +16,7 @@ const sans = Outfit({
 
 export const metadata: Metadata = {
   title: "Happy Birthday, Esha ✨",
-  description: "A little cinematic birthday surprise for Esha",
+  description: "A little birthday surprise for Esha",
   openGraph: {
     title: "Happy Birthday, Esha ✨",
     description: "A personal birthday experience",
@@ -27,7 +27,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#050509",
+  themeColor: "#fdf6f2",
 };
 
 export default function RootLayout({
@@ -37,7 +37,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} h-full`}>
-      <body className="min-h-full antialiased font-sans bg-[#050509] text-[#fff8f0] overflow-x-hidden">
+      <body className="min-h-full antialiased font-sans text-[#5a3545] overflow-x-hidden">
         {children}
       </body>
     </html>
