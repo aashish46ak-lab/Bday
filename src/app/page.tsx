@@ -7,7 +7,8 @@ import BirthdayHero from "@/components/BirthdayHero";
 import BirthdayCake from "@/components/BirthdayCake";
 import Fireworks from "@/components/Fireworks";
 import GiftBox from "@/components/GiftBox";
-import GiftReveal from "@/components/GiftReveal";
+import FlipCards from "@/components/FlipCards";
+import MemoryBook from "@/components/MemoryBook";
 import FinalReveal from "@/components/FinalReveal";
 import SoundController from "@/components/SoundController";
 
@@ -17,7 +18,8 @@ type Scene =
   | "cake"
   | "fireworks"
   | "gift"
-  | "reveal"
+  | "cards"
+  | "book"
   | "final";
 
 export default function Home() {
@@ -33,12 +35,12 @@ export default function Home() {
     setTimeout(() => {
       setShowFireworks(false);
       go("gift");
-    }, 4800);
+    }, 4500);
   };
 
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden text-[#5a3545]">
-      <Starfield density={scene === "intro" ? 0.25 : 0.4} />
+      <Starfield density={scene === "intro" ? 0.25 : 0.35} />
 
       {scene === "intro" && <VolumePrompt onEnter={() => go("hero")} />}
       {scene === "hero" && <BirthdayHero onComplete={() => go("cake")} />}
@@ -46,7 +48,7 @@ export default function Home() {
 
       {(scene === "fireworks" || showFireworks) && (
         <>
-          <Fireworks active intensity={1.05} />
+          <Fireworks active intensity={1.0} />
           <div className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none">
             <h2
               className="text-3xl sm:text-4xl font-medium text-center px-4"
@@ -63,17 +65,16 @@ export default function Home() {
         </>
       )}
 
-      {scene === "gift" && <GiftBox onOpen={() => go("reveal")} />}
-
-      {scene === "reveal" && (
-        <GiftReveal
-          onAllExplored={() => {
+      {scene === "gift" && <GiftBox onOpen={() => go("cards")} />}
+      {scene === "cards" && <FlipCards onAllFlipped={() => go("book")} />}
+      {scene === "book" && (
+        <MemoryBook
+          onDone={() => {
             setFinalActive(true);
             go("final");
           }}
         />
       )}
-
       {scene === "final" && <FinalReveal active={finalActive} />}
 
       {scene !== "intro" && <SoundController />}
