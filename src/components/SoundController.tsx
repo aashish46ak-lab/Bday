@@ -20,7 +20,7 @@ export default function SoundController() {
         setMuted(next);
         audio.setMuted(next);
       }}
-      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full border border-[#e8a0b4]/50 bg-white/80 backdrop-blur-sm flex items-center justify-center text-[#c45c7a] hover:border-[#c45c7a] transition-all shadow-sm"
+      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full border border-white/40 bg-white/25 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/40 transition-all shadow-sm"
       aria-label={muted ? "Unmute" : "Mute"}
     >
       {muted ? (
