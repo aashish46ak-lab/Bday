@@ -5,18 +5,16 @@ import { SITE_CONFIG } from "@/lib/config";
 import { audio } from "@/lib/audio";
 import SoundController from "./SoundController";
 
-/** Next Ashoj 15 ≈ early October — adjust year if needed */
 function getTargetBirthday(): Date {
   const now = new Date();
   let y = now.getFullYear();
-  const target = new Date(y, 9, 1, 0, 0, 0); // Oct 1 approx Ashoj season
+  const target = new Date(y, 9, 1, 0, 0, 0);
   if (now > target) target.setFullYear(y + 1);
   return target;
 }
 
 function useCountdown(target: Date) {
   const [left, setLeft] = useState({ d: 0, h: 0, m: 0, s: 0, done: false });
-
   useEffect(() => {
     const tick = () => {
       const diff = target.getTime() - Date.now();
@@ -37,7 +35,6 @@ function useCountdown(target: Date) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [target]);
-
   return left;
 }
 
@@ -115,32 +112,79 @@ export default function HeartBirthday() {
   );
 
   const canopy = useMemo(() => {
-    const pts: { x: number; y: number; s: number; c: string; d: number }[] = [];
-    const colors = ["#e63956", "#ff4d6d", "#ff758f", "#c9184a", "#ff8fa3", "#ffb3c1"];
-    for (let i = 0; i < 55; i++) {
-      const t = (i / 55) * Math.PI * 2;
-      const hx = 16 * Math.pow(Math.sin(t), 3);
-      const hy =
-        -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+    const pts: { x: number; y: number; s: number; c: string; d: number; o: number }[] = [];
+    const colors = [
+      "#e63956", "#ff4d6d", "#ff758f", "#c9184a", "#ff8fa3",
+      "#ffb3c1", "#ff6b8a", "#d62839", "#ff99ac", "#f72585",
+    ];
+
+    const inHeart = (x: number, y: number) => {
+      const nx = x / 1.05;
+      const ny = -y / 1.15 + 0.15;
+      const a = nx * nx + ny * ny - 1;
+      return a * a * a - nx * nx * ny * ny * ny <= 0.02;
+    };
+
+    let seed = 42;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+
+    for (let ring = 0; ring < 3; ring++) {
+      const n = 48 + ring * 12;
+      for (let i = 0; i < n; i++) {
+        const t = (i / n) * Math.PI * 2;
+        const hx = 16 * Math.pow(Math.sin(t), 3);
+        const hy = -(
+          13 * Math.cos(t) -
+          5 * Math.cos(2 * t) -
+          2 * Math.cos(3 * t) -
+          Math.cos(4 * t)
+        );
+        const scale = 2.05 - ring * 0.18;
+        pts.push({
+          x: 50 + hx * scale,
+          y: 36 + hy * (scale * 0.82),
+          s: 10 + (i % 5) * 2 + ring,
+          c: colors[(i + ring * 3) % colors.length],
+          d: ring * 0.12 + (i % 10) * 0.02,
+          o: 0.85 + rnd() * 0.15,
+        });
+      }
+    }
+
+    let filled = 0;
+    let attempts = 0;
+    while (filled < 160 && attempts < 900) {
+      attempts++;
+      const x = rnd() * 2.4 - 1.2;
+      const y = rnd() * 2.2 - 1.0;
+      if (!inHeart(x, y)) continue;
       pts.push({
-        x: 50 + hx * 1.9,
-        y: 42 + hy * 1.55,
-        s: 11 + (i % 4) * 3,
-        c: colors[i % colors.length],
-        d: (i % 12) * 0.05,
+        x: 50 + x * 38,
+        y: 40 + y * 32,
+        s: 8 + rnd() * 12,
+        c: colors[Math.floor(rnd() * colors.length)],
+        d: 0.25 + rnd() * 0.7,
+        o: 0.75 + rnd() * 0.25,
+      });
+      filled++;
+    }
+
+    for (let i = 0; i < 25; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = rnd() * 10;
+      pts.push({
+        x: 50 + Math.cos(a) * r * 0.7,
+        y: 28 + Math.sin(a) * r * 0.5,
+        s: 9 + rnd() * 10,
+        c: colors[Math.floor(rnd() * colors.length)],
+        d: 0.15 + rnd() * 0.4,
+        o: 0.9,
       });
     }
-    for (let i = 0; i < 30; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.random() * 18;
-      pts.push({
-        x: 50 + Math.cos(a) * r * 0.9,
-        y: 38 + Math.sin(a) * r * 0.75,
-        s: 9 + Math.random() * 8,
-        c: colors[i % colors.length],
-        d: 0.3 + Math.random() * 0.5,
-      });
-    }
+
     return pts;
   }, []);
 
@@ -202,10 +246,7 @@ export default function HeartBirthday() {
               <span className="text-6xl text-[#e63956]">♥</span>
             </div>
             {phase === "heart" && (
-              <p
-                className="mt-4 text-xl text-[#c9184a]"
-                style={{ fontFamily: "Georgia, serif" }}
-              >
+              <p className="mt-4 text-xl text-[#c9184a]" style={{ fontFamily: "Georgia, serif" }}>
                 Happy Birthday
               </p>
             )}
@@ -243,47 +284,79 @@ export default function HeartBirthday() {
               )}
             </div>
 
-            <div className="relative mx-auto mt-2" style={{ width: 260, height: 260 }}>
+            <div className="relative mx-auto mt-2" style={{ width: 280, height: 280 }}>
               {canopy.map((p, i) => (
                 <span
                   key={i}
-                  className="absolute"
+                  className="absolute select-none"
                   style={{
                     left: `${p.x}%`,
                     top: `${p.y}%`,
                     fontSize: p.s,
                     color: p.c,
+                    opacity: p.o ?? 1,
                     transform: "translate(-50%, -50%)",
-                    animation: `bloomHeart 0.55s ease-out ${p.d}s both`,
-                    textShadow: "0 1px 2px rgba(180,30,60,0.25)",
+                    animation: `bloomHeart 0.5s ease-out ${p.d}s both`,
+                    textShadow: "0 1px 3px rgba(180,30,60,0.2)",
+                    lineHeight: 1,
                   }}
                 >
                   ♥
                 </span>
               ))}
               <div
-                className="absolute left-1/2 bottom-2 -translate-x-1/2 origin-bottom"
+                className="absolute left-1/2 origin-bottom"
                 style={{
-                  width: 18,
-                  height: 90,
-                  background: "linear-gradient(180deg, #a67c52, #7a5638)",
-                  animation: "growTrunk 0.8s ease-out both",
-                  borderRadius: "6px 6px 2px 2px",
+                  bottom: 6,
+                  width: 14,
+                  height: 78,
+                  marginLeft: -7,
+                  background: "linear-gradient(180deg, #b8956c 0%, #8b6914 40%, #6b4f2a 100%)",
+                  animation: "growTrunk 0.85s ease-out both",
+                  borderRadius: "8px 8px 3px 3px",
+                  boxShadow:
+                    "inset 2px 0 4px rgba(255,255,255,0.15), inset -2px 0 4px rgba(0,0,0,0.15)",
                 }}
               />
-              <div className="absolute left-4 right-4 bottom-1 h-[2px] bg-[#d4b8a0]/80" />
+              <div
+                className="absolute origin-right"
+                style={{
+                  left: "38%",
+                  bottom: 55,
+                  width: 28,
+                  height: 5,
+                  background: "linear-gradient(90deg, #8b6914, #a67c52)",
+                  borderRadius: 3,
+                  transform: "rotate(-28deg)",
+                  animation: "bloomHeart 0.5s ease-out 0.35s both",
+                }}
+              />
+              <div
+                className="absolute origin-left"
+                style={{
+                  left: "52%",
+                  bottom: 58,
+                  width: 26,
+                  height: 5,
+                  background: "linear-gradient(90deg, #a67c52, #8b6914)",
+                  borderRadius: 3,
+                  transform: "rotate(32deg)",
+                  animation: "bloomHeart 0.5s ease-out 0.4s both",
+                }}
+              />
+              <div className="absolute left-6 right-6 bottom-1 h-[2px] bg-[#d4b8a0]/70 rounded-full" />
             </div>
 
             {phase === "message" &&
-              Array.from({ length: 10 }).map((_, i) => (
+              Array.from({ length: 16 }).map((_, i) => (
                 <span
                   key={`fall-${i}`}
                   className="pointer-events-none absolute text-[#ff6b8a]"
                   style={{
-                    left: `${30 + (i * 7) % 45}%`,
-                    top: "38%",
-                    fontSize: 10 + (i % 4) * 3,
-                    animation: `fallHeart ${3.5 + (i % 3)}s linear ${i * 0.4}s infinite`,
+                    left: `${22 + ((i * 5) % 56)}%`,
+                    top: "32%",
+                    fontSize: 9 + (i % 5) * 3,
+                    animation: `fallHeart ${3.2 + (i % 4) * 0.6}s linear ${i * 0.28}s infinite`,
                   }}
                 >
                   ♥
@@ -292,9 +365,7 @@ export default function HeartBirthday() {
 
             <div className="mt-3 text-center">
               <p className="text-[11px] text-[#8a6870]">
-                {cd.done
-                  ? "It's your day, Esha 🎂"
-                  : "Waiting for your birthday…"}
+                {cd.done ? "It's your day, Esha 🎂" : "Waiting for your birthday…"}
               </p>
               {!cd.done && (
                 <p className="text-sm text-[#c9184a] mt-0.5 tabular-nums">
