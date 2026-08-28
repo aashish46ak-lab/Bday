@@ -5,7 +5,6 @@ import { SITE_CONFIG } from "@/lib/config";
 import { ESHA_PHOTO } from "@/lib/eshaPhoto";
 import { audio } from "@/lib/audio";
 import SoundController from "./SoundController";
-import Fireworks from "./Fireworks";
 
 type Scene =
   | "pin"
@@ -81,71 +80,57 @@ function FloatingPetals() {
   );
 }
 
-function BlossomTree({ small = false }: { small?: boolean }) {
-  const blossoms = useMemo(() => {
-    const pts: { x: number; y: number; s: number; c: string; d: number }[] = [];
-    const colors = ["#ffb7c5", "#ffc0cb", "#ff69b4", "#ff85a2", "#ffe4ec", "#ff9ebb"];
-    let seed = 42;
-    const rnd = () => {
-      seed = (seed * 16807) % 2147483647;
-      return (seed - 1) / 2147483646;
-    };
-    const centers = [
-      { x: 50, y: 18, r: 26 },
-      { x: 30, y: 28, r: 18 },
-      { x: 70, y: 26, r: 18 },
-      { x: 40, y: 38, r: 14 },
-      { x: 60, y: 36, r: 14 },
-    ];
-    centers.forEach((c, ci) => {
-      for (let i = 0; i < (small ? 12 : 16); i++) {
-        const a = rnd() * Math.PI * 2;
-        const r = rnd() * c.r;
-        pts.push({
-          x: c.x + Math.cos(a) * r * 0.9,
-          y: c.y + Math.sin(a) * r * 0.65,
-          s: (small ? 7 : 9) + rnd() * 10,
-          c: colors[Math.floor(rnd() * colors.length)],
-          d: ci * 0.06 + i * 0.02,
-        });
-      }
-    });
-    return pts;
-  }, [small]);
-
-  const h = small ? 160 : 220;
+function SolarSystem() {
+  const planets = [
+    { r: 28, size: 8, speed: 22, color: "#f0a0b0" },
+    { r: 42, size: 11, speed: 36, color: "#ffc8a0" },
+    { r: 58, size: 12, speed: 48, color: "#7ec8e3" },
+    { r: 74, size: 10, speed: 62, color: "#e07050" },
+    { r: 92, size: 16, speed: 80, color: "#e8c87a" },
+  ];
   return (
-    <div className="relative mx-auto" style={{ width: small ? 160 : 220, height: h }}>
-      {blossoms.map((b, i) => (
-        <span
-          key={i}
-          className="absolute select-none pointer-events-none"
-          style={{
-            left: `${b.x}%`,
-            top: `${b.y}%`,
-            fontSize: b.s,
-            color: b.c,
-            transform: "translate(-50%, -50%)",
-            animation: `bloomHeart 0.55s ease-out ${b.d}s both`,
-            lineHeight: 1,
-          }}
-        >
-          ❀
-        </span>
+    <div className="relative mx-auto my-2" style={{ width: 220, height: 220 }}>
+      <div
+        className="absolute inset-0 rounded-full opacity-30"
+        style={{ background: "radial-gradient(circle, rgba(255,200,120,0.5) 0%, transparent 70%)" }}
+      />
+      {planets.map((p, i) => (
+        <div
+          key={`orbit-${i}`}
+          className="absolute left-1/2 top-1/2 rounded-full border border-pink-300/15"
+          style={{ width: p.r * 2, height: p.r * 2, marginLeft: -p.r, marginTop: -p.r }}
+        />
       ))}
       <div
-        className="absolute left-1/2"
+        className="absolute left-1/2 top-1/2 rounded-full"
         style={{
-          bottom: 4,
-          width: small ? 10 : 12,
-          height: small ? 55 : 70,
-          marginLeft: small ? -5 : -6,
-          background: "linear-gradient(90deg,#5a3a20,#c4a06a 40%,#6b4420)",
-          borderRadius: "3px 3px 2px 2px",
+          width: 28, height: 28, marginLeft: -14, marginTop: -14,
+          background: "radial-gradient(circle at 35% 35%, #fff5c0, #ffb347 50%, #e07020)",
+          boxShadow: "0 0 24px 8px rgba(255,180,80,0.55)",
+          animation: "softPulse 2.5s ease-in-out infinite",
         }}
       />
-      <div className="absolute" style={{ left: "28%", bottom: small ? 50 : 62, width: small ? 36 : 48, height: 3, background: "#8b5a2b", borderRadius: 2, transform: "rotate(-30deg)", transformOrigin: "right center" }} />
-      <div className="absolute" style={{ left: "50%", bottom: small ? 54 : 66, width: small ? 36 : 48, height: 3, background: "#8b5a2b", borderRadius: 2, transform: "rotate(28deg)", transformOrigin: "left center" }} />
+      {planets.map((p, i) => (
+        <div
+          key={`spin-${i}`}
+          className="absolute left-1/2 top-1/2"
+          style={{
+            width: p.r * 2, height: p.r * 2, marginLeft: -p.r, marginTop: -p.r,
+            animation: `orbitSpin ${p.speed}s linear infinite`,
+          }}
+        >
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: p.size, height: p.size,
+              left: "50%", top: 0,
+              marginLeft: -p.size / 2, marginTop: -p.size / 2,
+              background: p.color,
+              boxShadow: `0 0 8px ${p.color}`,
+            }}
+          />
+        </div>
+      ))}
     </div>
   );
 }
@@ -158,7 +143,6 @@ export default function EshaSurprise() {
   const [pickedFlower, setPickedFlower] = useState<number | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
-  const [showFw, setShowFw] = useState(false);
 
   useEffect(() => {
     audio.startMusic().catch(() => {});
@@ -189,11 +173,7 @@ export default function EshaSurprise() {
     if (giftOpen) return;
     setGiftOpen(true);
     audio.playSfx("gift");
-    setTimeout(() => {
-      setShowFw(true);
-      go("splash");
-      setTimeout(() => setShowFw(false), 5200);
-    }, 900);
+    setTimeout(() => go("splash"), 900);
   };
 
   const shakeJar = () => {
@@ -212,7 +192,6 @@ export default function EshaSurprise() {
       style={{ background: "linear-gradient(165deg, #1a0a18 0%, #2d1528 40%, #3d1a32 100%)" }}
     >
       <FloatingPetals />
-      {showFw && <Fireworks active intensity={1.35} />}
       <div className="relative z-10 w-full max-w-md px-5 py-8 min-h-[100dvh] flex flex-col">{children}</div>
       <SoundController />
     </div>
@@ -328,7 +307,39 @@ export default function EshaSurprise() {
           <img src={ESHA_PHOTO} alt="Esha" className="w-full aspect-[3/4] object-cover" />
           <p className="mt-2 text-center text-[11px] text-gray-500 italic">Esha · Ashoj 15 · Dang</p>
         </div>
-        <div className="mt-auto pt-8 flex justify-between w-full">
+
+        <div className="mt-5 w-full relative">
+          <p className="text-[9px] tracking-[0.2em] uppercase text-pink-300/40 text-center mb-1">little friends for Esha</p>
+          <div className="relative h-9 overflow-hidden w-full">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className="absolute text-base"
+                style={{
+                  animation: `hamsterRun ${2.8 + i * 0.25}s linear ${i * 0.35}s infinite`,
+                  top: `${(i % 3) * 5}px`,
+                  filter: "hue-rotate(-15deg) saturate(1.4) brightness(1.1)",
+                }}
+              >
+                🐹
+              </span>
+            ))}
+          </div>
+          <div className="flex justify-center gap-2.5 mt-1">
+            {["E", "S", "H", "A"].map((L, i) => (
+              <span
+                key={L}
+                className="inline-flex flex-col items-center"
+                style={{ animation: `starTwinkle ${1.2 + i * 0.18}s ease-in-out ${i * 0.1}s infinite` }}
+              >
+                <span className="text-sm" style={{ filter: "hue-rotate(-15deg) saturate(1.4)" }}>🐹</span>
+                <span className="text-[11px] text-pink-200/90 font-semibold tracking-wide">{L}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-auto pt-6 flex justify-between w-full">
           <button onClick={() => go("letter")} className="text-xs text-pink-300/50 px-3 py-2">← Back</button>
           <button onClick={() => go("journey")} className="px-6 py-2.5 rounded-full text-sm text-white active:scale-95" style={{ background: "linear-gradient(135deg,#ff4d6d,#c9184a)" }}>Next →</button>
         </div>
@@ -388,24 +399,24 @@ export default function EshaSurprise() {
 
   return shell(
     <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ animation: "sceneIn 0.55s ease-out both" }}>
-      <BlossomTree small />
-      <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 mb-2 mt-2">❀ With all my heart ❀</p>
+      <SolarSystem />
+      <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 mb-2 mt-1">❀ With all my heart ❀</p>
       <h2 className="text-2xl text-[#f5d0d8] leading-snug mb-4" style={{ fontFamily: "Georgia, serif" }}>
         May your life always be<br /><em className="text-pink-300">filled with flowers</em>
       </h2>
       <p className="text-sm text-pink-100/75 leading-relaxed max-w-xs mb-2">
         Happy birthday, Esha. May this year bring soft days, honest people, and so many reasons to smile. You deserve the best of everything.
       </p>
-      <p className="text-xs text-pink-300/50 mb-6">{SITE_CONFIG.person.dobBS} · {SITE_CONFIG.person.home}</p>
-      <div className="relative w-full h-24 mb-4">
+      <p className="text-xs text-pink-300/50 mb-4">{SITE_CONFIG.person.dobBS} · {SITE_CONFIG.person.home}</p>
+      <div className="relative w-full h-16 mb-3">
         {["E", "S", "H", "A"].map((L, li) => (
-          <span key={L} className="absolute text-2xl text-pink-200/90" style={{ left: `${18 + li * 18}%`, top: "30%", textShadow: "0 0 12px rgba(255,150,180,0.6)", animation: `starTwinkle ${1.4 + li * 0.2}s ease-in-out ${li * 0.15}s infinite` }}>{L}</span>
+          <span key={L} className="absolute text-2xl text-pink-200/90" style={{ left: `${18 + li * 18}%`, top: "20%", textShadow: "0 0 12px rgba(255,150,180,0.6)", animation: `starTwinkle ${1.4 + li * 0.2}s ease-in-out ${li * 0.15}s infinite` }}>{L}</span>
         ))}
       </div>
       <p className="text-[11px] text-pink-300/40">— many many happy returns —</p>
       <button
         onClick={() => { setCode(""); setGiftOpen(false); setPickedFlower(null); setReason(null); go("pin"); }}
-        className="mt-8 px-5 py-2 rounded-full text-xs text-pink-200/70 border border-pink-300/20 active:scale-95"
+        className="mt-6 px-5 py-2 rounded-full text-xs text-pink-200/70 border border-pink-300/20 active:scale-95"
       >↻ Experience again</button>
     </div>
   );
