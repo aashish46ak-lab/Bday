@@ -81,6 +81,75 @@ function FloatingPetals() {
   );
 }
 
+function BlossomTree({ small = false }: { small?: boolean }) {
+  const blossoms = useMemo(() => {
+    const pts: { x: number; y: number; s: number; c: string; d: number }[] = [];
+    const colors = ["#ffb7c5", "#ffc0cb", "#ff69b4", "#ff85a2", "#ffe4ec", "#ff9ebb"];
+    let seed = 42;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+    const centers = [
+      { x: 50, y: 18, r: 26 },
+      { x: 30, y: 28, r: 18 },
+      { x: 70, y: 26, r: 18 },
+      { x: 40, y: 38, r: 14 },
+      { x: 60, y: 36, r: 14 },
+    ];
+    centers.forEach((c, ci) => {
+      for (let i = 0; i < (small ? 12 : 16); i++) {
+        const a = rnd() * Math.PI * 2;
+        const r = rnd() * c.r;
+        pts.push({
+          x: c.x + Math.cos(a) * r * 0.9,
+          y: c.y + Math.sin(a) * r * 0.65,
+          s: (small ? 7 : 9) + rnd() * 10,
+          c: colors[Math.floor(rnd() * colors.length)],
+          d: ci * 0.06 + i * 0.02,
+        });
+      }
+    });
+    return pts;
+  }, [small]);
+
+  const h = small ? 160 : 220;
+  return (
+    <div className="relative mx-auto" style={{ width: small ? 160 : 220, height: h }}>
+      {blossoms.map((b, i) => (
+        <span
+          key={i}
+          className="absolute select-none pointer-events-none"
+          style={{
+            left: `${b.x}%`,
+            top: `${b.y}%`,
+            fontSize: b.s,
+            color: b.c,
+            transform: "translate(-50%, -50%)",
+            animation: `bloomHeart 0.55s ease-out ${b.d}s both`,
+            lineHeight: 1,
+          }}
+        >
+          ❀
+        </span>
+      ))}
+      <div
+        className="absolute left-1/2"
+        style={{
+          bottom: 4,
+          width: small ? 10 : 12,
+          height: small ? 55 : 70,
+          marginLeft: small ? -5 : -6,
+          background: "linear-gradient(90deg,#5a3a20,#c4a06a 40%,#6b4420)",
+          borderRadius: "3px 3px 2px 2px",
+        }}
+      />
+      <div className="absolute" style={{ left: "28%", bottom: small ? 50 : 62, width: small ? 36 : 48, height: 3, background: "#8b5a2b", borderRadius: 2, transform: "rotate(-30deg)", transformOrigin: "right center" }} />
+      <div className="absolute" style={{ left: "50%", bottom: small ? 54 : 66, width: small ? 36 : 48, height: 3, background: "#8b5a2b", borderRadius: 2, transform: "rotate(28deg)", transformOrigin: "left center" }} />
+    </div>
+  );
+}
+
 export default function EshaSurprise() {
   const [scene, setScene] = useState<Scene>("pin");
   const [code, setCode] = useState("");
@@ -119,11 +188,11 @@ export default function EshaSurprise() {
   const openGift = () => {
     if (giftOpen) return;
     setGiftOpen(true);
-    audio.playSfx("click");
+    audio.playSfx("gift");
     setTimeout(() => {
       setShowFw(true);
       go("splash");
-      setTimeout(() => setShowFw(false), 3500);
+      setTimeout(() => setShowFw(false), 5200);
     }, 900);
   };
 
@@ -143,7 +212,7 @@ export default function EshaSurprise() {
       style={{ background: "linear-gradient(165deg, #1a0a18 0%, #2d1528 40%, #3d1a32 100%)" }}
     >
       <FloatingPetals />
-      {showFw && <Fireworks active intensity={1.1} />}
+      {showFw && <Fireworks active intensity={1.35} />}
       <div className="relative z-10 w-full max-w-md px-5 py-8 min-h-[100dvh] flex flex-col">{children}</div>
       <SoundController />
     </div>
@@ -151,7 +220,7 @@ export default function EshaSurprise() {
 
   if (scene === "pin") {
     return shell(
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
+      <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <span className="text-3xl mb-3">🌷</span>
         <h1 className="text-xl text-[#f5d0d8]" style={{ fontFamily: "Georgia, serif" }}>For You, Esha</h1>
         <p className="text-xs text-pink-200/50 mt-1 mb-6">Enter the secret code</p>
@@ -182,10 +251,10 @@ export default function EshaSurprise() {
 
   if (scene === "gift") {
     return shell(
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
+      <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-sm text-pink-200/70 mb-8">Tap the gift box to open it 🎁</p>
         <button onClick={openGift} className="relative active:scale-95 transition-transform" style={{ width: 140, height: 140, animation: giftOpen ? "none" : "softPulse 1.4s ease-in-out infinite" }}>
-          <div className="absolute inset-0 rounded-lg" style={{ background: giftOpen ? "linear-gradient(180deg,#ff8fab,#c9184a)" : "linear-gradient(180deg,#ffb3c1,#e63956)", boxShadow: "0 12px 40px rgba(230,57,86,0.45)", transform: giftOpen ? "scaleY(0.7) translateY(20px)" : "none", transition: "all 0.6s ease" }} />
+          <div className="absolute inset-0 rounded-lg" style={{ background: giftOpen ? "linear-gradient(180deg,#ff8fab,#c9184a)" : "linear-gradient(180deg,#ffb3c1,#e63956)", boxShadow: "0 12px 40px rgba(230,57,86,0.45)", transform: giftOpen ? "scaleY(0.7) translateY(20px)" : "none", transition: "all 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
           <div className="absolute left-1/2 -translate-x-1/2 w-4 h-full bg-white/80" style={{ top: 0 }} />
           <div className="absolute top-1/2 -translate-y-1/2 w-full h-4 bg-white/80" />
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-3xl transition-all duration-500" style={{ transform: giftOpen ? "translateY(-40px) rotate(-15deg) scale(1.2)" : "none", opacity: giftOpen ? 0.3 : 1 }}>🎀</div>
@@ -196,7 +265,7 @@ export default function EshaSurprise() {
 
   if (scene === "splash") {
     return shell(
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
+      <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ animation: "sceneIn 0.55s ease-out both" }}>
         <span className="text-4xl mb-3">🎂</span>
         <p className="text-[10px] tracking-[0.3em] uppercase text-pink-300/60 mb-2">Your Special Day</p>
         <h1 className="text-3xl text-transparent bg-clip-text mb-2" style={{ fontFamily: "Georgia, serif", backgroundImage: "linear-gradient(90deg,#ffb3c1,#fff,#c4b5fd)" }}>HAPPY BIRTHDAY</h1>
@@ -210,7 +279,7 @@ export default function EshaSurprise() {
 
   if (scene === "bouquet") {
     return shell(
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 text-center">— A little gift —</p>
         <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-1" style={{ fontFamily: "Georgia, serif" }}>A Digital Bouquet for You</h2>
         <p className="text-xs text-pink-200/40 text-center mb-6">Each flower holds a little message</p>
@@ -231,7 +300,7 @@ export default function EshaSurprise() {
 
   if (scene === "letter") {
     return shell(
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 text-center">— From the heart —</p>
         <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-4" style={{ fontFamily: "Georgia, serif" }}>A Letter For You</h2>
         <div className="flex-1 rounded-2xl px-4 py-5 text-[13px] leading-relaxed text-pink-50/90 overflow-y-auto" style={{ background: "rgba(255,200,220,0.06)", border: "1px solid rgba(255,180,200,0.12)", fontFamily: "Georgia, serif" }}>
@@ -251,7 +320,7 @@ export default function EshaSurprise() {
 
   if (scene === "photo") {
     return shell(
-      <div className="flex-1 flex flex-col items-center">
+      <div className="flex-1 flex flex-col items-center" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 text-center">— A collection of memories —</p>
         <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-6" style={{ fontFamily: "Georgia, serif" }}>A Moment for Esha</h2>
         <div className="bg-white p-2.5 pb-8 shadow-xl" style={{ width: 220, transform: "rotate(-1.5deg)", animation: "cardIn 0.5s ease-out both" }}>
@@ -269,7 +338,7 @@ export default function EshaSurprise() {
 
   if (scene === "journey") {
     return shell(
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 text-center">— Our journey —</p>
         <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-1" style={{ fontFamily: "Georgia, serif" }}>Moments Worth Celebrating</h2>
         <p className="text-xs text-pink-200/40 text-center mb-5">Every step, a story</p>
@@ -292,9 +361,9 @@ export default function EshaSurprise() {
 
   if (scene === "reasons") {
     return shell(
-      <div className="flex-1 flex flex-col items-center">
+      <div className="flex-1 flex flex-col items-center" style={{ animation: "sceneIn 0.45s ease-out both" }}>
         <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 text-center">— From the heart —</p>
-        <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-1" style={{ fontFamily: "Georgia, serif" }}>Reasons I&apos;m Grateful for You</h2>
+        <h2 className="text-xl text-[#f5d0d8] text-center mt-1 mb-1" style={{ fontFamily: "Georgia, serif" }}>Reasons I'm Grateful for You</h2>
         <p className="text-xs text-pink-200/40 text-center mb-8">Shake the jar and pick a note</p>
         <button onClick={shakeJar} className="relative active:scale-95" style={{ width: 90, height: 130, animation: shaking ? "softPulse 0.25s ease-in-out infinite" : "none" }}>
           <div className="absolute inset-0 rounded-2xl" style={{ background: "linear-gradient(180deg,#e8b4c8,#c45c8a)", boxShadow: "0 8px 28px rgba(180,60,100,0.4)" }} />
@@ -318,8 +387,9 @@ export default function EshaSurprise() {
   }
 
   return shell(
-    <div className="flex-1 flex flex-col items-center justify-center text-center">
-      <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 mb-2">❀ With all my heart ❀</p>
+    <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ animation: "sceneIn 0.55s ease-out both" }}>
+      <BlossomTree small />
+      <p className="text-[10px] tracking-[0.25em] uppercase text-pink-300/50 mb-2 mt-2">❀ With all my heart ❀</p>
       <h2 className="text-2xl text-[#f5d0d8] leading-snug mb-4" style={{ fontFamily: "Georgia, serif" }}>
         May your life always be<br /><em className="text-pink-300">filled with flowers</em>
       </h2>
